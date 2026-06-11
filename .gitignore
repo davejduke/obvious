@@ -45,3 +45,7 @@ docker-compose.override.yml
 .env
 .env.local
 .env.production
+
+# Demo output
+demo/reports/*.pdf
+demo/reports/*.xlsx

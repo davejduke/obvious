@@ -1,0 +1,107 @@
+{
+  "_metadata": {
+    "source": "Microsoft Sentinel — MFA Authentication Logs",
+    "total_records_in_production": 847293,
+    "sample_size": 500,
+    "sampling_method": "stratified_random",
+    "period_start": "2025-12-01T00:00:00Z",
+    "period_end": "2026-02-28T23:59:59Z",
+    "tenant_id": "demo-tenant-iconic-corp",
+    "workspace_id": "la-workspace-iconic-prod",
+    "ingested_at": "2026-03-01T06:00:00Z",
+    "schema_version": "1.0",
+    "description": "Stratified sample of 847K Microsoft Sentinel SigninLogs for NIS 2 Article 21(j) MFA audit. Strata: admin accounts (n=150), standard user accounts (n=250), service accounts (n=100)."
+  },
+  "summary_statistics": {
+    "total_sign_ins": 847293,
+    "unique_users": 1247,
+    "admin_accounts": 147,
+    "standard_user_accounts": 986,
+    "service_accounts": 114,
+    "mfa_enabled_admin": 125,
+    "mfa_enabled_standard": 612,
+    "mfa_enabled_service": 98,
+    "mfa_coverage_admin_pct": 85.03,
+    "mfa_coverage_standard_pct": 62.07,
+    "mfa_coverage_service_pct": 85.96,
+    "overall_mfa_coverage_pct": 67.12,
+    "conditional_access_policies": 4,
+    "mfa_bypass_accounts": 22,
+    "failed_mfa_challenges": 3841,
+    "successful_mfa_challenges": 192847,
+    "legacy_auth_attempts": 12403,
+    "legacy_auth_blocked": 9841
+  },
+  "admin_accounts_sample": [
+    {"user_id": "usr_admin_001", "display_name": "Alice Chen", "upn": "alice.chen@iconic.com", "role": "Global Administrator", "mfa_enabled": true, "mfa_methods": ["Microsoft Authenticator", "FIDO2"], "last_sign_in": "2026-02-28T16:42:11Z", "sign_in_count_90d": 847, "mfa_challenges_90d": 847, "mfa_failures_90d": 2, "conditional_access": "MFA-Admin-Policy", "risk_level": "none"},
+    {"user_id": "usr_admin_002", "display_name": "Bob Martinez", "upn": "bob.martinez@iconic.com", "role": "Security Administrator", "mfa_enabled": true, "mfa_methods": ["Microsoft Authenticator"], "last_sign_in": "2026-02-28T14:12:33Z", "sign_in_count_90d": 623, "mfa_challenges_90d": 623, "mfa_failures_90d": 0, "conditional_access": "MFA-Admin-Policy", "risk_level": "none"},
+    {"user_id": "usr_admin_003", "display_name": "Carol Williams", "upn": "carol.williams@iconic.com", "role": "IT Administrator", "mfa_enabled": true, "mfa_methods": ["SMS"], "last_sign_in": "2026-02-27T09:01:44Z", "sign_in_count_90d": 441, "mfa_challenges_90d": 441, "mfa_failures_90d": 8, "conditional_access": "MFA-Admin-Policy", "risk_level": "low", "note": "SMS-only MFA — phishing resistant MFA recommended"},
+    {"user_id": "usr_admin_004", "display_name": "David Kim", "upn": "david.kim@iconic.com", "role": "Exchange Administrator", "mfa_enabled": false, "mfa_methods": [], "last_sign_in": "2026-02-28T11:30:22Z", "sign_in_count_90d": 312, "mfa_challenges_90d": 0, "mfa_failures_90d": 0, "conditional_access": "none", "risk_level": "high", "finding": "Admin account WITHOUT MFA — HIGH RISK"},
+    {"user_id": "usr_admin_005", "display_name": "Emma Thompson", "upn": "emma.thompson@iconic.com", "role": "SharePoint Administrator", "mfa_enabled": true, "mfa_methods": ["Microsoft Authenticator"], "last_sign_in": "2026-02-26T15:44:09Z", "sign_in_count_90d": 287, "mfa_challenges_90d": 287, "mfa_failures_90d": 1, "conditional_access": "MFA-Admin-Policy", "risk_level": "none"},
+    {"user_id": "usr_admin_006", "display_name": "Frank Liu", "upn": "frank.liu@iconic.com", "role": "Billing Administrator", "mfa_enabled": false, "mfa_methods": [], "last_sign_in": "2026-02-25T08:12:54Z", "sign_in_count_90d": 198, "mfa_challenges_90d": 0, "conditional_access": "none", "risk_level": "high", "finding": "Admin account WITHOUT MFA — HIGH RISK"},
+    {"user_id": "usr_admin_007", "display_name": "Grace Patel", "upn": "grace.patel@iconic.com", "role": "Privileged Role Administrator", "mfa_enabled": true, "mfa_methods": ["FIDO2", "Microsoft Authenticator"], "last_sign_in": "2026-02-28T17:33:21Z", "sign_in_count_90d": 521, "mfa_challenges_90d": 521, "mfa_failures_90d": 0, "conditional_access": "MFA-Admin-Policy-Strict", "risk_level": "none"},
+    {"user_id": "usr_admin_008", "display_name": "Henry Okafor", "upn": "henry.okafor@iconic.com", "role": "IT Help Desk Administrator", "mfa_enabled": true, "mfa_methods": ["Microsoft Authenticator"], "last_sign_in": "2026-02-27T12:15:45Z", "sign_in_count_90d": 334, "mfa_challenges_90d": 334, "mfa_failures_90d": 3, "conditional_access": "MFA-Admin-Policy", "risk_level": "none"},
+    {"user_id": "usr_admin_009", "display_name": "Isabella Foster", "upn": "isabella.foster@iconic.com", "role": "Compliance Administrator", "mfa_enabled": true, "mfa_methods": ["Microsoft Authenticator"], "last_sign_in": "2026-02-28T09:28:37Z", "sign_in_count_90d": 445, "mfa_challenges_90d": 445, "mfa_failures_90d": 1, "conditional_access": "MFA-Admin-Policy", "risk_level": "none"},
+    {"user_id": "usr_admin_010", "display_name": "James Rodriguez", "upn": "james.rodriguez@iconic.com", "role": "Global Administrator", "mfa_enabled": false, "mfa_methods": [], "last_sign_in": "2026-02-20T14:02:09Z", "sign_in_count_90d": 156, "mfa_challenges_90d": 0, "conditional_access": "none", "risk_level": "critical", "finding": "Global Administrator WITHOUT MFA — CRITICAL RISK"}
+  ],
+  "standard_users_sample": [
+    {"user_id": "usr_std_001", "upn": "std001@iconic.com", "department": "Engineering", "mfa_enabled": true, "mfa_methods": ["Microsoft Authenticator"], "sign_in_count_90d": 421, "mfa_challenges_90d": 421},
+    {"user_id": "usr_std_002", "upn": "std002@iconic.com", "department": "Engineering", "mfa_enabled": false, "sign_in_count_90d": 387, "mfa_challenges_90d": 0, "finding": "Standard user without MFA"},
+    {"user_id": "usr_std_003", "upn": "std003@iconic.com", "department": "Finance", "mfa_enabled": true, "mfa_methods": ["SMS"], "sign_in_count_90d": 312, "mfa_challenges_90d": 312},
+    {"user_id": "usr_std_004", "upn": "std004@iconic.com", "department": "Finance", "mfa_enabled": false, "sign_in_count_90d": 298, "mfa_challenges_90d": 0, "finding": "Standard user without MFA"},
+    {"user_id": "usr_std_005", "upn": "std005@iconic.com", "department": "HR", "mfa_enabled": false, "sign_in_count_90d": 245, "mfa_challenges_90d": 0, "finding": "Standard user without MFA"},
+    {"user_id": "usr_std_006", "upn": "std006@iconic.com", "department": "Sales", "mfa_enabled": true, "mfa_methods": ["Microsoft Authenticator"], "sign_in_count_90d": 512, "mfa_challenges_90d": 512},
+    {"user_id": "usr_std_007", "upn": "std007@iconic.com", "department": "Operations", "mfa_enabled": true, "mfa_methods": ["Microsoft Authenticator"], "sign_in_count_90d": 401, "mfa_challenges_90d": 401},
+    {"user_id": "usr_std_008", "upn": "std008@iconic.com", "department": "Legal", "mfa_enabled": false, "sign_in_count_90d": 198, "mfa_challenges_90d": 0, "finding": "Standard user without MFA"},
+    {"user_id": "usr_std_009", "upn": "std009@iconic.com", "department": "Marketing", "mfa_enabled": true, "mfa_methods": ["TOTP"], "sign_in_count_90d": 367, "mfa_challenges_90d": 367},
+    {"user_id": "usr_std_010", "upn": "std010@iconic.com", "department": "Engineering", "mfa_enabled": false, "sign_in_count_90d": 487, "mfa_challenges_90d": 0, "finding": "Standard user without MFA"}
+  ],
+  "conditional_access_policies": [
+    {
+      "policy_id": "ca-policy-001",
+      "name": "MFA-Admin-Policy",
+      "state": "enabled",
+      "target_users": "all_admin_roles",
+      "mfa_required": true,
+      "grant_controls": ["mfa"],
+      "sign_in_frequency": "every_sign_in",
+      "compliant_devices_required": false,
+      "coverage_admin_pct": 100,
+      "exceptions": 22,
+      "exception_reason": "legacy_service_accounts"
+    },
+    {
+      "policy_id": "ca-policy-002",
+      "name": "MFA-HighRisk-Users",
+      "state": "enabled",
+      "target_users": "high_risk_sign_ins",
+      "mfa_required": true,
+      "coverage_pct": 100
+    },
+    {
+      "policy_id": "ca-policy-003",
+      "name": "MFA-AllUsers-PilotGroup",
+      "state": "enabled_for_reporting_only",
+      "target_users": "pilot_group_850_users",
+      "mfa_required": true,
+      "note": "In REPORT-ONLY mode — not enforced. Planned full rollout Q2 2026."
+    },
+    {
+      "policy_id": "ca-policy-004",
+      "name": "Block-Legacy-Auth",
+      "state": "enabled",
+      "target_users": "all_users",
+      "block_legacy_auth": true,
+      "exceptions": 114,
+      "exception_reason": "service_accounts_using_basic_auth"
+    }
+  ],
+  "key_findings": [
+    "MFA enforcement is strong for admin accounts (85%) but has 3 Global/Billing/Exchange admins without MFA — critical gap",
+    "Standard user MFA coverage is only 62% — 374 standard users have no MFA",
+    "CA Policy MFA-AllUsers-PilotGroup is in report-only mode — not enforced",
+    "22 admin-role accounts have MFA bypass exceptions for legacy reasons",
+    "114 service accounts use legacy basic auth — Block-Legacy-Auth policy has exceptions",
+    "SMS MFA used by 18 admin accounts — phishing-resistant methods recommended (FIDO2/Authenticator App)"
+  ]
+}
