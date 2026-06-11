@@ -18,78 +18,57 @@ jobs:
 
       - name: Check required directories exist
         run: |
-          dirs=(
-            services/identity
-            services/control-framework
-            services/evidence
-            services/audit-trail
-            services/engagement
-            services/integration
-            services/reporting
-            engine/scope
-            engine/economy
-            engine/risk
-            engine/quality
-            engine/documentation
-            engine/orchestrator
-            frontend
-            shared/types
-            infra/docker
-            db/migrations
-          )
-          for d in "${dirs[@]}"; do
-            if [ ! -d "$d" ]; then
-              echo "MISSING: $d"
-              exit 1
-            fi
+          set -e
+          for d in \
+            services/identity \
+            services/control-framework \
+            services/evidence \
+            services/audit-trail \
+            services/engagement \
+            services/integration \
+            services/reporting \
+            engine/scope \
+            engine/economy \
+            engine/risk \
+            engine/quality \
+            engine/documentation \
+            engine/orchestrator \
+            frontend \
+            shared/types \
+            infra/docker \
+            db/migrations; do
+            test -d "$d" || { echo "MISSING directory: $d"; exit 1; }
             echo "OK: $d"
           done
 
       - name: Check required files exist
         run: |
-          files=(
-            infra/docker/docker-compose.yml
-            db/migrations/001_initial_schema.sql
-            db/migrations/002_seed_nis2.sql
-            engine/pyproject.toml
-            frontend/package.json
-            frontend/tsconfig.json
-            Makefile
-          )
-          for f in "${files[@]}"; do
-            if [ ! -f "$f" ]; then
-              echo "MISSING: $f"
-              exit 1
-            fi
+          set -e
+          for f in \
+            infra/docker/docker-compose.yml \
+            db/migrations/001_initial_schema.sql \
+            db/migrations/002_seed_nis2.sql \
+            engine/pyproject.toml \
+            frontend/package.json \
+            frontend/tsconfig.json \
+            Makefile; do
+            test -f "$f" || { echo "MISSING file: $f"; exit 1; }
             echo "OK: $f"
           done
 
-      - name: Check each service has go.mod
+      - name: Check each service has go.mod and main.go
         run: |
-          services=(identity control-framework evidence audit-trail engagement integration reporting)
-          for svc in "${services[@]}"; do
-            if [ ! -f "services/$svc/go.mod" ]; then
-              echo "MISSING: services/$svc/go.mod"
-              exit 1
-            fi
-            echo "OK: services/$svc/go.mod"
-          done
-
-      - name: Check each service has cmd/api/main.go
-        run: |
-          services=(identity control-framework evidence audit-trail engagement integration reporting)
-          for svc in "${services[@]}"; do
-            if [ ! -f "services/$svc/cmd/api/main.go" ]; then
-              echo "MISSING: services/$svc/cmd/api/main.go"
-              exit 1
-            fi
-            echo "OK: services/$svc/cmd/api/main.go"
+          set -e
+          for svc in identity control-framework evidence audit-trail engagement integration reporting; do
+            test -f "services/$svc/go.mod" || { echo "MISSING go.mod: $svc"; exit 1; }
+            test -f "services/$svc/cmd/api/main.go" || { echo "MISSING main.go: $svc"; exit 1; }
+            echo "OK: $svc"
           done
 
       - name: Validate Docker Compose syntax
         run: |
           docker compose -f infra/docker/docker-compose.yml config --quiet
-          echo "Docker Compose config is valid"
+          echo "Docker Compose is valid"
 
   validate-python:
     name: Validate Python engine
@@ -102,46 +81,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Check pyproject.toml exists
-        run: test -f engine/pyproject.toml && echo "OK: engine/pyproject.toml"
-
-      - name: Check engine __init__.py files
+      - name: Check engine packages exist
         run: |
-          pkgs=(scope economy risk quality documentation orchestrator shared)
-          for pkg in "${pkgs[@]}"; do
-            if [ ! -f "engine/$pkg/__init__.py" ]; then
-              echo "MISSING: engine/$pkg/__init__.py"
-              exit 1
-            fi
-            echo "OK: engine/$pkg/__init__.py"
+          set -e
+          for pkg in scope economy risk quality documentation orchestrator shared; do
+            test -f "engine/$pkg/__init__.py" || { echo "MISSING: engine/$pkg/__init__.py"; exit 1; }
+            echo "OK: engine/$pkg"
           done
 
-      - name: Install engine (dry-run check)
-        run: |
-          pip install tomllib 2>/dev/null || true
-          python3 -c "
-import tomllib
-with open('engine/pyproject.toml', 'rb') as f:
-    data = tomllib.load(f)
-assert 'project' in data
-assert data['project']['name'] == 'aiauditor-engine'
-assert 'pydantic' in str(data['project']['dependencies'])
-print('pyproject.toml is valid')
-"
+      - name: Validate pyproject.toml
+        run: python3 scripts/validate_pyproject.py
 
-      - name: Validate Python models import structure
-        run: |
-          python3 -c "
-import ast, sys
-with open('engine/shared/models.py') as f:
-    src = f.read()
-tree = ast.parse(src)
-classes = [n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
-required = ['Persona', 'EngagementStatus', 'FindingSeverity', 'NIS2Article']
-for r in required:
-    assert r in classes, f'Missing class: {r}'
-print('All required classes found:', required)
-"
+      - name: Validate engine models structure
+        run: python3 scripts/validate_models.py
 
   validate-typescript:
     name: Validate TypeScript types
@@ -154,38 +106,11 @@ print('All required classes found:', required)
         with:
           node-version: "20"
 
-      - name: Check frontend/package.json dependencies
-        run: |
-          node -e "
-          const pkg = require('./frontend/package.json');
-          const deps = {...pkg.dependencies, ...pkg.devDependencies};
-          ['react', 'react-dom', 'next', 'typescript', 'tailwindcss'].forEach(d => {
-            if (!deps[d]) throw new Error('Missing dep: ' + d);
-            console.log('OK:', d, deps[d]);
-          });
-          const reactVer = deps['react'].replace('^','');
-          if (!reactVer.startsWith('19')) throw new Error('React 19 required, got: ' + reactVer);
-          const nextVer = deps['next'].replace('^','');
-          if (!nextVer.startsWith('15')) throw new Error('Next.js 15 required, got: ' + nextVer);
-          console.log('React 19 + Next.js 15: OK');
-          "
+      - name: Validate frontend package.json
+        run: node scripts/validate_package.js
 
       - name: Validate TypeScript types file
-        run: |
-          node -e "
-          const fs = require('fs');
-          const src = fs.readFileSync('shared/types/typescript/index.ts', 'utf8');
-          const required = ['Persona', 'Organization', 'Control', 'Engagement', 'Finding', 'NIS2Article', 'NIS2ComplianceScore'];
-          required.forEach(r => {
-            if (!src.includes(r)) throw new Error('Missing type: ' + r);
-            console.log('OK:', r);
-          });
-          const personas = ['internal_auditor', 'cae', 'audit_committee', 'auditee_ciso', 'cosourced_provider', 'ptwg_member', 'beta_tester'];
-          personas.forEach(p => {
-            if (!src.includes(p)) throw new Error('Missing persona: ' + p);
-          });
-          console.log('All 7 personas present');
-          "
+        run: node scripts/validate_types.js
 
   validate-sql:
     name: Validate SQL migrations
@@ -193,45 +118,29 @@ print('All required classes found:', required)
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check SQL files exist and have content
+      - name: Check SQL file sizes
         run: |
+          set -e
           for f in db/migrations/001_initial_schema.sql db/migrations/002_seed_nis2.sql; do
             size=$(wc -c < "$f")
-            if [ "$size" -lt 100 ]; then
-              echo "File too small: $f ($size bytes)"
-              exit 1
-            fi
-            echo "OK: $f ($size bytes)"
+            test "$size" -gt 100 || { echo "File too small: $f"; exit 1; }
+            echo "OK: $f (${size} bytes)"
           done
 
       - name: Check key tables in schema
         run: |
-          tables=(organizations users roles user_roles permissions engagements \
-                  controls control_frameworks evidence findings recommendations audit_events)
-          for t in "${tables[@]}"; do
-            if ! grep -q "CREATE TABLE $t" db/migrations/001_initial_schema.sql; then
-              echo "MISSING TABLE: $t"
-              exit 1
-            fi
-            echo "OK: $t"
+          set -e
+          for t in organizations users roles user_roles permissions engagements \
+                   controls control_frameworks evidence findings recommendations audit_events; do
+            grep -q "CREATE TABLE $t" db/migrations/001_initial_schema.sql || { echo "MISSING TABLE: $t"; exit 1; }
+            echo "OK table: $t"
           done
 
-      - name: Check RLS policies present
+      - name: Check RLS and NIS2 seed coverage
         run: |
-          if ! grep -q "ENABLE ROW LEVEL SECURITY" db/migrations/001_initial_schema.sql; then
-            echo "MISSING: ROW LEVEL SECURITY"
-            exit 1
-          fi
-          echo "OK: RLS policies present"
-
-      - name: Check NIS2 seed has all 10 articles
-        run: |
-          articles=(NIS2-21a NIS2-21b NIS2-21c NIS2-21d NIS2-21e NIS2-21f NIS2-21g NIS2-21h NIS2-21i NIS2-21j)
-          for a in "${articles[@]}"; do
-            if ! grep -q "$a" db/migrations/002_seed_nis2.sql; then
-              echo "MISSING NIS2 article: $a"
-              exit 1
-            fi
+          grep -q "ENABLE ROW LEVEL SECURITY" db/migrations/001_initial_schema.sql || { echo "MISSING RLS"; exit 1; }
+          echo "OK: RLS present"
+          for a in NIS2-21a NIS2-21b NIS2-21c NIS2-21d NIS2-21e NIS2-21f NIS2-21g NIS2-21h NIS2-21i NIS2-21j; do
+            grep -q "$a" db/migrations/002_seed_nis2.sql || { echo "MISSING: $a"; exit 1; }
             echo "OK: $a"
           done
-
