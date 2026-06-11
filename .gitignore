@@ -1,0 +1,47 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+out/
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Environment
+.env
+.env.local
+.env.production
