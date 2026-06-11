@@ -12,12 +12,15 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/davejduke/obvious/services/engagement/internal/handler"
+	"github.com/davejduke/obvious/services/engagement/internal/store"
 )
 
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8082"
 	}
 
 	env := os.Getenv("ENV")
@@ -36,10 +39,13 @@ func main() {
 			"version": "0.1.0",
 		})
 	})
-
 	r.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ready": true})
 	})
+
+	engagementStore := store.NewEngagementStore()
+	engagementHandler := handler.NewEngagementHandler(engagementStore)
+	engagementHandler.RegisterRoutes(r)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),

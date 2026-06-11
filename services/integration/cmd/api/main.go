@@ -1,4 +1,4 @@
-// Package main is the entry point for the integration service.
+// Package main is the entry point for the integration gateway service.
 package main
 
 import (
@@ -12,12 +12,16 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/davejduke/obvious/services/integration/internal/adapters"
+	"github.com/davejduke/obvious/services/integration/internal/connector"
+	"github.com/davejduke/obvious/services/integration/internal/handler"
 )
 
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8085"
 	}
 
 	env := os.Getenv("ENV")
@@ -36,10 +40,34 @@ func main() {
 			"version": "0.1.0",
 		})
 	})
-
 	r.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ready": true})
 	})
+
+	// Build connector registry
+	reg := connector.NewRegistry()
+
+	// Sentinel adapter with circuit breaker
+	sentinelAdapter := adapters.NewSentinelAdapter(adapters.SentinelConfig{
+		WorkspaceID: os.Getenv("SENTINEL_WORKSPACE_ID"),
+		TenantID:    os.Getenv("AZURE_TENANT_ID"),
+		ClientID:    os.Getenv("AZURE_CLIENT_ID"),
+		ClientSecret: os.Getenv("AZURE_CLIENT_SECRET"),
+		MockMode:    os.Getenv("MOCK_MODE") != "false",
+	})
+	reg.Register(connector.NewCircuitBreaker(sentinelAdapter, connector.DefaultConfig()))
+
+	// Splunk adapter with circuit breaker
+	splunkAdapter := adapters.NewSplunkAdapter(adapters.SplunkConfig{
+		BaseURL:     os.Getenv("SPLUNK_BASE_URL"),
+		Token:       os.Getenv("SPLUNK_TOKEN"),
+		SavedSearch: os.Getenv("SPLUNK_SAVED_SEARCH"),
+		MockMode:    os.Getenv("MOCK_MODE") != "false",
+	})
+	reg.Register(connector.NewCircuitBreaker(splunkAdapter, connector.DefaultConfig()))
+
+	integrationHandler := handler.NewIntegrationHandler(reg)
+	integrationHandler.RegisterRoutes(r)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
@@ -67,3 +95,4 @@ func main() {
 	}
 	log.Println("[integration] server exited")
 }
+
