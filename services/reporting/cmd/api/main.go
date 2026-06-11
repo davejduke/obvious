@@ -12,12 +12,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/davejduke/obvious/services/reporting/internal/handler"
 )
 
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8087"
 	}
 
 	env := os.Getenv("ENV")
@@ -36,10 +38,12 @@ func main() {
 			"version": "0.1.0",
 		})
 	})
-
 	r.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ready": true})
 	})
+
+	reportingHandler := handler.NewReportingHandler()
+	reportingHandler.RegisterRoutes(r)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
@@ -67,3 +71,4 @@ func main() {
 	}
 	log.Println("[reporting] server exited")
 }
+
