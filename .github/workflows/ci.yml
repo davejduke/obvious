@@ -1,0 +1,146 @@
+name: AIAUDITOR CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "release/**"
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-structure:
+    name: Validate monorepo structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required directories exist
+        run: |
+          set -e
+          for d in \
+            services/identity \
+            services/control-framework \
+            services/evidence \
+            services/audit-trail \
+            services/engagement \
+            services/integration \
+            services/reporting \
+            engine/scope \
+            engine/economy \
+            engine/risk \
+            engine/quality \
+            engine/documentation \
+            engine/orchestrator \
+            frontend \
+            shared/types \
+            infra/docker \
+            db/migrations; do
+            test -d "$d" || { echo "MISSING directory: $d"; exit 1; }
+            echo "OK: $d"
+          done
+
+      - name: Check required files exist
+        run: |
+          set -e
+          for f in \
+            infra/docker/docker-compose.yml \
+            db/migrations/001_initial_schema.sql \
+            db/migrations/002_seed_nis2.sql \
+            engine/pyproject.toml \
+            frontend/package.json \
+            frontend/tsconfig.json \
+            Makefile; do
+            test -f "$f" || { echo "MISSING file: $f"; exit 1; }
+            echo "OK: $f"
+          done
+
+      - name: Check each service has go.mod and main.go
+        run: |
+          set -e
+          for svc in identity control-framework evidence audit-trail engagement integration reporting; do
+            test -f "services/$svc/go.mod" || { echo "MISSING go.mod: $svc"; exit 1; }
+            test -f "services/$svc/cmd/api/main.go" || { echo "MISSING main.go: $svc"; exit 1; }
+            echo "OK: $svc"
+          done
+
+      - name: Validate Docker Compose syntax
+        run: |
+          docker compose -f infra/docker/docker-compose.yml config --quiet
+          echo "Docker Compose is valid"
+
+  validate-python:
+    name: Validate Python engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check engine packages exist
+        run: |
+          set -e
+          for pkg in scope economy risk quality documentation orchestrator shared; do
+            test -f "engine/$pkg/__init__.py" || { echo "MISSING: engine/$pkg/__init__.py"; exit 1; }
+            echo "OK: engine/$pkg"
+          done
+
+      - name: Validate pyproject.toml
+        run: python3 scripts/validate_pyproject.py
+
+      - name: Validate engine models structure
+        run: python3 scripts/validate_models.py
+
+  validate-typescript:
+    name: Validate TypeScript types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate frontend package.json
+        run: node scripts/validate_package.js
+
+      - name: Validate TypeScript types file
+        run: node scripts/validate_types.js
+
+  validate-sql:
+    name: Validate SQL migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check SQL file sizes
+        run: |
+          set -e
+          for f in db/migrations/001_initial_schema.sql db/migrations/002_seed_nis2.sql; do
+            size=$(wc -c < "$f")
+            test "$size" -gt 100 || { echo "File too small: $f"; exit 1; }
+            echo "OK: $f (${size} bytes)"
+          done
+
+      - name: Check key tables in schema
+        run: |
+          set -e
+          for t in organizations users roles user_roles permissions engagements \
+                   controls control_frameworks evidence findings recommendations audit_events; do
+            grep -q "CREATE TABLE $t" db/migrations/001_initial_schema.sql || { echo "MISSING TABLE: $t"; exit 1; }
+            echo "OK table: $t"
+          done
+
+      - name: Check RLS and NIS2 seed coverage
+        run: |
+          grep -q "ENABLE ROW LEVEL SECURITY" db/migrations/001_initial_schema.sql || { echo "MISSING RLS"; exit 1; }
+          echo "OK: RLS present"
+          for a in NIS2-21a NIS2-21b NIS2-21c NIS2-21d NIS2-21e NIS2-21f NIS2-21g NIS2-21h NIS2-21i NIS2-21j; do
+            grep -q "$a" db/migrations/002_seed_nis2.sql || { echo "MISSING: $a"; exit 1; }
+            echo "OK: $a"
+          done
