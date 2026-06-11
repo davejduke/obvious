@@ -11,39 +11,23 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/davejduke/obvious/services/evidence/internal/handler"
+	"github.com/davejduke/obvious/services/evidence/internal/repository"
 )
 
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8083"
 	}
 
-	env := os.Getenv("ENV")
-	if env == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	r := gin.New()
-	r.Use(gin.Logger())
-	r.Use(gin.Recovery())
-
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service": "evidence",
-			"status":  "healthy",
-			"version": "0.1.0",
-		})
-	})
-
-	r.GET("/ready", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"ready": true})
-	})
+	// Wire up in-memory repository (swap for postgres repository in production)
+	repo := repository.NewMemory()
+	h := handler.New(repo)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      r,
+		Handler:      h.Router(),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
