@@ -1,0 +1,89 @@
+{
+  "_metadata": {
+    "evidence_type": "L5_RECORD",
+    "tier": 5,
+    "title": "Microsoft Entra ID — MFA Configuration Export",
+    "export_type": "Azure AD MFA Settings Export",
+    "exported_at": "2026-02-28T06:00:00Z",
+    "exported_by": "AIAUDITOR — Sentinel Integration Adapter",
+    "tenant_id": "demo-tenant-iconic-corp",
+    "collected_at": "2026-02-28T06:05:00Z",
+    "nis2_controls": ["NIS2-21j"]
+  },
+  "tenant_mfa_settings": {
+    "mfa_service_settings": {
+      "allow_one_way_sms": false,
+      "allow_phone_app_notification": true,
+      "allow_phone_app_oath_token": true,
+      "allow_verification_code": true,
+      "allow_phone_call": false,
+      "mfa_lockout_duration_minutes": 30,
+      "mfa_lockout_threshold": 5,
+      "trusted_ips_enabled": false,
+      "fraud_alert_enabled": true,
+      "fraud_alert_action": "block_user"
+    },
+    "authentication_methods_policy": {
+      "microsoft_authenticator": {
+        "state": "enabled",
+        "include_all_users": true,
+        "exclude_groups": [],
+        "number_matching": "enabled",
+        "additional_context": "enabled"
+      },
+      "fido2_security_key": {
+        "state": "enabled",
+        "include_all_users": false,
+        "include_groups": ["sg-admin-accounts", "sg-privileged-users"],
+        "key_restrictions_enforced": true,
+        "allowed_aaguids": ["passkey-certified"]
+      },
+      "sms": {
+        "state": "enabled",
+        "phase_out_target_date": "2026-06-30",
+        "include_all_users": true
+      },
+      "voice_calls": {
+        "state": "disabled"
+      },
+      "email_otp": {
+        "state": "disabled"
+      },
+      "software_oath": {
+        "state": "enabled",
+        "include_all_users": true
+      }
+    },
+    "conditional_access_summary": {
+      "total_policies": 47,
+      "mfa_requiring_policies": 4,
+      "admin_mfa_coverage": "100% of admin roles targeted (22 exceptions active)",
+      "standard_user_mfa_coverage": "report-only pilot — not enforced",
+      "legacy_auth_block": "enabled with 114 service account exceptions"
+    }
+  },
+  "privileged_identity_management": {
+    "pim_enabled": true,
+    "just_in_time_access": true,
+    "mfa_on_activation": true,
+    "eligible_roles_requiring_mfa": ["Global Administrator", "Privileged Role Administrator", "Security Administrator"],
+    "active_assignments_with_mfa_bypass": 22,
+    "bypass_review_last_completed": "2025-12-01"
+  },
+  "self_service_registration": {
+    "enabled": true,
+    "mandatory_registration_campaign": {
+      "state": "enabled",
+      "target": "all_users_without_mfa",
+      "snooze_days_allowed": 14,
+      "campaigns_sent_90d": 3,
+      "registrations_completed_via_campaign": 287
+    }
+  },
+  "config_gaps_identified": [
+    "22 active MFA bypass exceptions for admin accounts — some older than 180 days without review",
+    "MFA-AllUsers-PilotGroup policy is in report-only mode — not blocking sign-ins",
+    "SMS authentication still enabled — phaseout deadline June 2026",
+    "114 service account exceptions to legacy auth block represent residual risk"
+  ]
+}
