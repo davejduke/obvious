@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+# AIAUDITOR Frontend — Next.js 15 / React 19
+
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci --only=production 2>/dev/null || npm ci
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY frontend/ .
+RUN npm run build
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public 2>/dev/null || true
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+
+CMD ["node", "server.js"]

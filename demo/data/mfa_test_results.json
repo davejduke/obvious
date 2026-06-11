@@ -1,0 +1,113 @@
+{
+  "_metadata": {
+    "evidence_type": "L6_TELEMETRY",
+    "tier": 6,
+    "title": "MFA Effectiveness Testing Results — Q1 2026",
+    "test_conducted_by": "Internal Security Team — Red Team Exercise",
+    "test_period_start": "2026-01-15",
+    "test_period_end": "2026-01-31",
+    "report_id": "RT-2026-Q1-MFA-001",
+    "classification": "Confidential — Internal",
+    "collected_at": "2026-02-01T09:00:00Z",
+    "nis2_controls": ["NIS2-21j"]
+  },
+  "test_objectives": [
+    "Verify MFA enforcement for all admin accounts",
+    "Test bypass attempts against conditional access policies",
+    "Verify phishing-resistant MFA effectiveness against simulated attacks",
+    "Assess MFA fatigue attack resilience (notification bombing)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_id": "TC-MFA-001",
+      "name": "Admin Account MFA Bypass Attempt",
+      "description": "Attempt to authenticate as admin without MFA",
+      "accounts_tested": 147,
+      "bypass_succeeded": 3,
+      "bypass_failed": 144,
+      "bypass_rate": 0.0204,
+      "conclusion": "PARTIAL_FAIL",
+      "detail": "3 admin accounts (usr_admin_004, usr_admin_006, usr_admin_010) authenticated without MFA challenge — no CA policy applied",
+      "severity": "critical"
+    },
+    {
+      "scenario_id": "TC-MFA-002",
+      "name": "Standard User MFA Bypass Attempt",
+      "description": "Attempt to authenticate as standard user without MFA",
+      "accounts_tested": 50,
+      "bypass_succeeded": 19,
+      "bypass_failed": 31,
+      "bypass_rate": 0.38,
+      "conclusion": "PARTIAL_FAIL",
+      "detail": "38% of tested standard accounts had no MFA requirement — consistent with 62% MFA enrollment rate",
+      "severity": "high"
+    },
+    {
+      "scenario_id": "TC-MFA-003",
+      "name": "MFA Notification Fatigue Attack",
+      "description": "Send repeated push notifications to test user acceptance",
+      "accounts_tested": 20,
+      "fatigue_succeeded": 0,
+      "fatigue_failed": 20,
+      "conclusion": "PASS",
+      "detail": "Number matching on Microsoft Authenticator effectively prevents notification fatigue attacks",
+      "severity": "none"
+    },
+    {
+      "scenario_id": "TC-MFA-004",
+      "name": "Legacy Authentication Protocol Attack",
+      "description": "Attempt to authenticate via legacy protocols (IMAP, POP3, Basic Auth)",
+      "accounts_tested": 30,
+      "legacy_auth_succeeded": 7,
+      "legacy_auth_blocked": 23,
+      "conclusion": "PARTIAL_FAIL",
+      "detail": "7 service accounts authenticated via legacy protocols — these have exceptions in Block-Legacy-Auth policy",
+      "severity": "medium"
+    },
+    {
+      "scenario_id": "TC-MFA-005",
+      "name": "FIDO2 Phishing Resistance Test",
+      "description": "Simulated phishing attack against FIDO2-protected admin accounts",
+      "accounts_tested": 25,
+      "phishing_succeeded": 0,
+      "phishing_failed": 25,
+      "conclusion": "PASS",
+      "detail": "FIDO2 security keys are fully phishing-resistant — no successful phishing attacks against FIDO2-protected accounts",
+      "severity": "none"
+    }
+  ],
+  "overall_results": {
+    "total_tests": 5,
+    "passed": 2,
+    "partially_failed": 3,
+    "failed": 0,
+    "mfa_effectiveness_score": 0.72,
+    "critical_gaps": 2,
+    "high_gaps": 1,
+    "overall_verdict": "PARTIALLY_EFFECTIVE",
+    "summary": "MFA controls are partially effective. Strong enforcement exists for most admin accounts and phishing-resistant methods work well. Key gaps: 3 admin accounts lack MFA enforcement, 38% of standard users have no MFA, and some legacy auth bypasses exist for service accounts."
+  },
+  "remediation_tracking": [
+    {
+      "gap": "3 admin accounts without MFA",
+      "assigned_to": "IT Security Team",
+      "target_date": "2026-03-15",
+      "status": "in_progress",
+      "priority": "critical"
+    },
+    {
+      "gap": "38% standard users without MFA",
+      "assigned_to": "IT Operations",
+      "target_date": "2026-06-30",
+      "status": "planned",
+      "priority": "high"
+    },
+    {
+      "gap": "7 service account legacy auth exceptions",
+      "assigned_to": "Platform Engineering",
+      "target_date": "2026-04-30",
+      "status": "in_progress",
+      "priority": "medium"
+    }
+  ]
+}

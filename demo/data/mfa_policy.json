@@ -1,0 +1,76 @@
+{
+  "_metadata": {
+    "evidence_type": "L1_POLICY",
+    "tier": 1,
+    "title": "Iconic Corp — Multi-Factor Authentication Policy",
+    "document_id": "POL-IAM-0042",
+    "version": "3.1",
+    "effective_date": "2025-01-01",
+    "review_date": "2026-01-01",
+    "status": "approved",
+    "owner": "Chief Information Security Officer",
+    "approver": "Board Audit Committee",
+    "classification": "Internal — Confidential",
+    "nis2_controls": ["NIS2-21j"],
+    "collected_at": "2026-02-14T10:00:00Z",
+    "collected_by": "AIAUDITOR Integration — Evidence Pipeline"
+  },
+  "policy_statement": "Iconic Corp mandates Multi-Factor Authentication (MFA) for all privileged and administrative accounts with immediate effect. Standard user accounts shall achieve 100% MFA enrollment by Q2 2026 as part of the Zero Trust transformation programme.",
+  "scope": {
+    "in_scope": [
+      "All Microsoft 365 accounts (admin and standard users)",
+      "All Azure Active Directory identities",
+      "All VPN access",
+      "All privileged access workstations",
+      "External partner accounts with access to corporate systems"
+    ],
+    "out_of_scope": [
+      "Non-interactive service accounts (covered by separate Service Account Policy POL-IAM-0043)",
+      "Break-glass emergency accounts (covered by POL-IAM-0041)"
+    ]
+  },
+  "requirements": {
+    "mandatory_mfa_accounts": [
+      {
+        "account_type": "Global Administrators",
+        "required_by": "2024-01-01",
+        "mfa_methods": ["FIDO2 Security Key", "Microsoft Authenticator App"],
+        "phishing_resistant_required": true,
+        "compliance_target": "100%"
+      },
+      {
+        "account_type": "All Privileged Role Accounts",
+        "required_by": "2024-06-01",
+        "mfa_methods": ["FIDO2 Security Key", "Microsoft Authenticator App", "Certificate-based Auth"],
+        "phishing_resistant_required": true,
+        "compliance_target": "100%"
+      },
+      {
+        "account_type": "Standard User Accounts",
+        "required_by": "2026-06-30",
+        "mfa_methods": ["Microsoft Authenticator App", "FIDO2 Security Key", "TOTP App", "SMS (phaseout planned)"],
+        "phishing_resistant_required": false,
+        "compliance_target": "100%",
+        "rollout_plan": "Phased quarterly rollout — pilot Q1 2026, full enforcement Q2 2026"
+      }
+    ],
+    "prohibited": [
+      "SMS-only MFA for admin accounts from 2026-06-30",
+      "Voice call MFA for admin accounts",
+      "Password-only authentication for any account"
+    ],
+    "exceptions_process": "All MFA exceptions require CISO approval, documented business justification, compensating controls, and mandatory review every 90 days"
+  },
+  "compliance_framework_mapping": {
+    "NIS2_Article_21j": "Authentication and access control — MFA requirement for privileged accounts",
+    "ISO27001_A9_4": "Access control — user access management",
+    "NIST_800_63B": "Level 2 assurance — MFA mandatory",
+    "CIS_Control_6_3": "Require MFA for externally-exposed applications",
+    "CIS_Control_6_5": "Require MFA for administrative access"
+  },
+  "policy_gaps_noted_at_audit": [
+    "Policy requires 100% admin MFA since 2024-01-01 but 3 admin accounts remain non-compliant (22 exceptions active)",
+    "Standard user deadline of Q2 2026 means current 62% coverage is within policy timeline but represents a risk",
+    "SMS MFA phaseout for admins scheduled for 2026-06-30 — 18 admins still using SMS-only"
+  ]
+}
