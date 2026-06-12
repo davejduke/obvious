@@ -1,0 +1,353 @@
+version: "3.9"
+
+# ============================================================
+# AIAUDITOR — Full Stack Docker Compose
+# All services networked via aiauditor-net (Docker DNS = service key)
+#
+# Service port map (host:container):
+#   postgres          5432:5432
+#   redis             6379:6379
+#   redpanda          9092:9092, 19092:19092
+#   identity          8081:8081
+#   control-framework 8082:8082
+#   evidence          8083:8083
+#   engagement        8084:8084
+#   integration       8085:8085
+#   audit-trail       8086:8086
+#   reporting         8087:8087
+#   engine            8088:8088
+#   frontend          3000:3000
+# ============================================================
+
+services:
+  # ──────────────────────────────────────────────────────────
+  # Infrastructure
+  # ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aiauditor-postgres
+    environment:
+      POSTGRES_USER: aiauditor
+      POSTGRES_PASSWORD: aiauditor_dev
+      POSTGRES_DB: aiauditor
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiauditor -d aiauditor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aiauditor-net
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: aiauditor-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aiauditor-net
+
+  redpanda:
+    image: redpandadata/redpanda:v24.1.1
+    container_name: aiauditor-redpanda
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --smp 1
+      - --memory 1G
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --default-log-level=warn
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+      - "18081:8081"
+      - "18082:8082"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy.*true'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - aiauditor-net
+
+  redpanda-console:
+    image: redpandadata/console:v2.5.2
+    container_name: aiauditor-redpanda-console
+    entrypoint: /bin/sh
+    command: -c "echo \"$$CONSOLE_CONFIG_FILE\" > /tmp/config.yml; /app/console"
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda:9092"]
+        schemaRegistry:
+          enabled: true
+          urls: ["http://redpanda:8081"]
+        redpanda:
+          adminApi:
+            enabled: true
+            urls: ["http://redpanda:9644"]
+    ports:
+      - "9644:8080"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    networks:
+      - aiauditor-net
+
+  # ──────────────────────────────────────────────────────────
+  # Application Services (Go)
+  # ──────────────────────────────────────────────────────────
+  identity:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: identity
+    container_name: aiauditor-identity
+    environment:
+      PORT: "8081"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
+      JWT_PRIVATE_KEY_PATH: "/run/secrets/jwt_private.pem"
+      JWT_PUBLIC_KEY_PATH: "/run/secrets/jwt_public.pem"
+      ENV: development
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  control-framework:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: control-framework
+    container_name: aiauditor-control-framework
+    environment:
+      PORT: "8082"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      ENV: development
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  evidence:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: evidence
+    container_name: aiauditor-evidence
+    environment:
+      PORT: "8083"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      ENV: development
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  engagement:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: engagement
+    container_name: aiauditor-engagement
+    environment:
+      PORT: "8084"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      ENV: development
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  integration:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: integration
+    container_name: aiauditor-integration
+    environment:
+      PORT: "8085"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      ENV: development
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  audit-trail:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: audit-trail
+    container_name: aiauditor-audit-trail
+    environment:
+      PORT: "8086"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      ENV: development
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  reporting:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: reporting
+    container_name: aiauditor-reporting
+    environment:
+      PORT: "8087"
+      ENV: development
+    ports:
+      - "8087:8087"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8087/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  # ──────────────────────────────────────────────────────────
+  # Reasoning Engine (Python / FastAPI)
+  # ──────────────────────────────────────────────────────────
+  engine:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.engine
+    container_name: aiauditor-engine
+    environment:
+      PORT: "8088"
+      ENV: development
+    ports:
+      - "8088:8088"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    networks:
+      - aiauditor-net
+
+  # ──────────────────────────────────────────────────────────
+  # Frontend (Next.js)
+  # ──────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.frontend
+    container_name: aiauditor-frontend
+    environment:
+      PORT: "3000"
+      NODE_ENV: production
+      NEXT_PUBLIC_IDENTITY_URL: "http://identity:8081"
+      NEXT_PUBLIC_ENGAGEMENT_URL: "http://engagement:8084"
+      NEXT_PUBLIC_EVIDENCE_URL: "http://evidence:8083"
+      NEXT_PUBLIC_ENGINE_URL: "http://engine:8088"
+      NEXT_PUBLIC_REPORTING_URL: "http://reporting:8087"
+    ports:
+      - "3000:3000"
+    depends_on:
+      identity:
+        condition: service_healthy
+      engine:
+        condition: service_healthy
+    networks:
+      - aiauditor-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  redpanda_data:
+
+networks:
+  aiauditor-net:
+    driver: bridge
