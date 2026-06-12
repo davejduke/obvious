@@ -1,0 +1,30 @@
+# Autobuild workflow policy for davejduke/obvious
+# Reference: https://help.obvious.ai/autobuild/config-yml-reference
+
+branches:
+  defaultBase: main
+
+pr:
+  merge:
+    method: squash
+
+# Uncomment and configure as needed:
+#
+# ci:
+#   generatedFileCommands:
+#     - name: codegen
+#       filePatterns:
+#         - "**/*.graphql"
+#       command: "npm run codegen"
+#
+# preview:
+#   primaryEnvironment: staging
+#   environments:
+#     staging:
+#       urlTemplate: "https://pr-{prNumber}-staging.example.com"
+#
+# qa:
+#   guidePaths:
+#     - docs/QA.md
+#   automationPaths:
+#     - .github/staging-automations/
