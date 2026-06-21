@@ -2,6 +2,7 @@ package circuit_test
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,7 +42,7 @@ func TestBreaker_ClosesOnSuccess(t *testing.T) {
 	b.Record(errFake) // Open
 
 	// Manually force HalfOpen by backdating openedAt via zero recovery timeout.
-	b2 := circuit.New(circuit.Config{FailureThreshold: 1, RecoveryTimeout: 0})
+	b2 := circuit.New(circuit.Config{FailureThreshold: 1, RecoveryTimeout: time.Nanosecond})
 	_ = b2.Allow()
 	b2.Record(errFake) // Open → immediately transitions to HalfOpen on next Allow
 
@@ -55,7 +56,7 @@ func TestBreaker_ClosesOnSuccess(t *testing.T) {
 }
 
 func TestBreaker_HalfOpenRejectsSecondRequest(t *testing.T) {
-	b := circuit.New(circuit.Config{FailureThreshold: 1, RecoveryTimeout: 0})
+	b := circuit.New(circuit.Config{FailureThreshold: 1, RecoveryTimeout: time.Nanosecond})
 	_ = b.Allow()
 	b.Record(errFake) // Open
 
@@ -124,34 +125,45 @@ func TestBreaker_StateString(t *testing.T) {
 }
 
 func TestBreaker_OnStateChange(t *testing.T) {
+	var mu sync.Mutex
 	var transitions []string
 	b := circuit.New(circuit.Config{
 		FailureThreshold: 1,
-		RecoveryTimeout:  0,
+		RecoveryTimeout:  time.Nanosecond,
 		OnStateChange: func(from, to circuit.State) {
+			mu.Lock()
 			transitions = append(transitions, from.String()+"→"+to.String())
+			mu.Unlock()
 		},
 	})
 
 	// Trigger Closed→Open.
 	_ = b.Allow()
 	b.Record(errFake)
-	time.Sleep(10 * time.Millisecond) // allow async callback to run
+	time.Sleep(20 * time.Millisecond) // allow async callback to run
 
-	// Trigger Open→HalfOpen (recovery timeout=0) then HalfOpen→Closed.
+	// Trigger Open→HalfOpen (recovery timeout=1ns) then HalfOpen→Closed.
 	_ = b.Allow()
 	b.Record(nil)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
-	found := func(t string) bool {
-		for _, s := range transitions {
-			if s == t {
+	mu.Lock()
+	found := func(s string) bool {
+		for _, tr := range transitions {
+			if tr == s {
 				return true
 			}
 		}
 		return false
 	}
-	if !found("closed→open") {
-		t.Errorf("missing closed→open transition, got %v", transitions)
+	hasClosedOpen := found("closed→open")
+	mu.Unlock()
+
+	if !hasClosedOpen {
+		mu.Lock()
+		all := make([]string, len(transitions))
+		copy(all, transitions)
+		mu.Unlock()
+		t.Errorf("missing closed→open transition, got %v", all)
 	}
 }
