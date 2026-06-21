@@ -308,6 +308,34 @@ services:
       - aiauditor-net
 
   # ──────────────────────────────────────────────────────────
+  # Webhooks Service
+  # ──────────────────────────────────────────────────────────
+  webhooks:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: webhooks
+    container_name: aiauditor-webhooks
+    environment:
+      PORT: "8088"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      ENV: development
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  # ──────────────────────────────────────────────────────────
   # API Gateway (Go / Chi)
   # ──────────────────────────────────────────────────────────
   gateway:
@@ -335,6 +363,7 @@ services:
       INTEGRATION_URL: "http://integration:8085"
       AUDIT_TRAIL_URL: "http://audit-trail:8086"
       REPORTING_URL: "http://reporting:8087"
+      WEBHOOKS_URL: "http://webhooks:8088"
     ports:
       - "8080:8080"
     depends_on:

@@ -86,6 +86,7 @@ func main() {
 		IntegrationURL: cfg.IntegrationURL,
 		AuditTrailURL:  cfg.AuditTrailURL,
 		ReportingURL:   cfg.ReportingURL,
+		WebhooksURL:    cfg.WebhooksURL,
 	}
 	router := proxy.Build(svcCfg, auth, rl, cfg.FrontendOrigin)
 
