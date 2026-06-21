@@ -3,9 +3,15 @@ import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardHeader, CardBody } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SeverityBadge } from '@/components/ui/badge';
+import { ApprovalBanner, type ApprovalWorkflow } from '@/components/ui/approval-banner';
+import { SignOffModal, type SignOffDecision, type SignOffPayload } from '@/components/ui/sign-off-modal';
+import { PasswordConfirmDialog, type PasswordConfirmPayload } from '@/components/ui/password-confirm-dialog';
 import { mockEngagements, mockNIS2Score } from '@/lib/mock-data';
 import { useState } from 'react';
-import { FileText, Download, Eye, Plus, Calendar, Lock } from 'lucide-react';
+import { FileText, Download, Eye, Plus, Calendar, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+
+// Mock current user — in production from JWT.
+const CURRENT_USER_ROLE = 'engagement_lead' as const;
 
 const reportTemplates = [
   { id: 'nis2-exec', name: 'NIS 2 Executive Summary', description: 'Board-level compliance overview', pages: '~8 pages', access: ['audit_committee', 'cae'] },
@@ -15,19 +21,116 @@ const reportTemplates = [
   { id: 'evidence-pack', name: 'Evidence Pack', description: 'Compiled evidence with linkages', pages: '~60 pages', access: ['internal_auditor'] },
 ];
 
-const generatedReports = [
+interface GeneratedReport {
+  id: string;
+  name: string;
+  generated: string;
+  engagement: string;
+  format: string;
+  size: string;
+}
+
+const initialReports: GeneratedReport[] = [
   { id: 'rpt-001', name: 'NIS 2 Executive Summary — Jan 2024', generated: '2024-01-25', engagement: 'NIS 2 Article 21 Audit 2024', format: 'PDF', size: '1.2 MB' },
   { id: 'rpt-002', name: 'Interim Findings Register — Jan 2024', generated: '2024-01-22', engagement: 'NIS 2 Article 21 Audit 2024', format: 'XLSX', size: '245 KB' },
 ];
 
+/** Build a mock workflow for each report. */
+function buildMockReportWorkflow(reportId: string): ApprovalWorkflow {
+  if (reportId === 'rpt-001') {
+    return {
+      id: `wf-${reportId}`,
+      workflow_type: 'report_release',
+      status: 'approved',
+      submitted_by_email: 'el@example.com',
+      submitted_at: '2024-01-24T10:00:00Z',
+      decided_by_email: 'el@example.com',
+      decided_at: '2024-01-24T15:00:00Z',
+    };
+  }
+  return {
+    id: `wf-${reportId}`,
+    workflow_type: 'report_release',
+    status: 'draft',
+  };
+}
+
 export default function ReportsPage() {
   const [generating, setGenerating] = useState<string | null>(null);
   const [selectedEng, setSelectedEng] = useState(mockEngagements[0].id);
+  const [workflows, setWorkflows] = useState<Record<string, ApprovalWorkflow>>(() =>
+    Object.fromEntries(initialReports.map(r => [r.id, buildMockReportWorkflow(r.id)]))
+  );
+
+  // Approval modal state
+  const [approvalReportId, setApprovalReportId] = useState<string | null>(null);
+  const [approvalDecision, setApprovalDecision] = useState<SignOffDecision>('approve');
+  // Password confirm dialog state
+  const [lockReportId, setLockReportId] = useState<string | null>(null);
 
   const handleGenerate = (tplId: string) => {
     setGenerating(tplId);
     setTimeout(() => setGenerating(null), 2000);
   };
+
+  function handleSubmitForApproval(reportId: string) {
+    const wf = workflows[reportId];
+    if (!wf) return;
+    setWorkflows(prev => ({
+      ...prev,
+      [reportId]: {
+        ...wf,
+        status: 'pending_approval',
+        submitted_by_email: 'el@example.com',
+        submitted_at: new Date().toISOString(),
+      },
+    }));
+  }
+
+  function handleApprovalConfirm(payload: SignOffPayload) {
+    if (!approvalReportId) return;
+    const wf = workflows[approvalReportId];
+    if (!wf) return;
+    const now = new Date().toISOString();
+    setWorkflows(prev => ({
+      ...prev,
+      [approvalReportId]: {
+        ...wf,
+        status: payload.decision === 'approve' ? 'approved' : 'rejected',
+        decided_by_email: payload.actorEmail,
+        decided_at: now,
+        latest_comment: payload.comment || undefined,
+        rejection_reason: payload.rejectionReason,
+      },
+    }));
+    setApprovalReportId(null);
+  }
+
+  function handleLockConfirm(_payload: PasswordConfirmPayload) {
+    if (!lockReportId) return;
+    const wf = workflows[lockReportId];
+    if (!wf) return;
+    // In production: POST /api/v1/approvals/{wf.id}/lock  with password_confirm
+    setWorkflows(prev => ({
+      ...prev,
+      [lockReportId]: {
+        ...wf,
+        status: 'locked',
+        decided_at: new Date().toISOString(),
+        latest_comment: 'Report locked and released.',
+      },
+    }));
+    setLockReportId(null);
+  }
+
+  function handleReturnToDraft(reportId: string) {
+    const wf = workflows[reportId];
+    if (!wf) return;
+    setWorkflows(prev => ({ ...prev, [reportId]: { ...wf, status: 'draft', rejection_reason: undefined } }));
+  }
+
+  const activeReport = approvalReportId ? initialReports.find(r => r.id === approvalReportId) : null;
+  const lockReport = lockReportId ? initialReports.find(r => r.id === lockReportId) : null;
 
   return (
     <AppShell title="Reports">
@@ -80,21 +183,17 @@ export default function ReportsPage() {
                         </div>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={generating === tpl.id ? 'ghost' : 'primary'}
-                      disabled={generating === tpl.id}
-                      onClick={() => handleGenerate(tpl.id)}
-                    >
-                      {generating === tpl.id ? (
-                        <span className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Generating...
-                        </span>
-                      ) : (
-                        <><Plus size={14} />Generate</>
-                      )}
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button size="sm" variant="primary"
+                        disabled={!!generating}
+                        onClick={() => handleGenerate(tpl.id)}>
+                        {generating === tpl.id ? (
+                          <span className="animate-pulse">Generating…</span>
+                        ) : (
+                          <><Plus size={13} /> Generate</>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </CardBody>
               </Card>
@@ -104,74 +203,103 @@ export default function ReportsPage() {
           {/* Generated reports */}
           <div className="space-y-4">
             <h3 className="font-semibold text-slate-900">Generated Reports</h3>
-            {generatedReports.map(rpt => (
-              <Card key={rpt.id} className="hover:shadow-md transition-shadow">
-                <CardBody>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText size={20} className="text-green-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-900 text-sm">{rpt.name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{rpt.engagement}</p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
-                        <span>{rpt.format}</span>
-                        <span>{rpt.size}</span>
-                        <span>Generated: {rpt.generated}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm"><Eye size={14} />Preview</Button>
-                      <Button variant="secondary" size="sm"><Download size={14} />Download</Button>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
-            ))}
-
-            {/* NIS 2 Score snapshot */}
-            <Card>
-              <CardHeader>
-                <h3 className="font-semibold text-slate-900 text-sm">Compliance Score Snapshot</h3>
-              </CardHeader>
-              <CardBody className="p-0">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-50 text-slate-400 uppercase tracking-wide">
-                    <tr>
-                      <th className="px-4 py-2 text-left">Article</th>
-                      <th className="px-4 py-2 text-left">Score</th>
-                      <th className="px-4 py-2 text-left">Findings</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {Object.entries(mockNIS2Score.by_article).map(([art, data]) => (
-                      <tr key={art} className="hover:bg-slate-50">
-                        <td className="px-4 py-2 font-mono font-medium">Art. {art.toUpperCase()}</td>
-                        <td className="px-4 py-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-1.5 bg-slate-100 rounded-full">
-                              <div className={`h-full rounded-full ${data.score >= 80 ? 'bg-green-500' : data.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                                style={{ width: `${data.score}%` }} />
-                            </div>
-                            <span className="font-medium">{data.score}%</span>
+            {initialReports.map(rpt => {
+              const wf = workflows[rpt.id];
+              const isLocked = wf?.status === 'locked';
+              return (
+                <Card key={rpt.id} className="hover:shadow-md transition-shadow">
+                  <CardBody>
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isLocked ? 'bg-blue-900' : 'bg-slate-100'}`}>
+                            {isLocked
+                              ? <Lock size={18} className="text-white" />
+                              : <FileText size={18} className="text-slate-600" />}
                           </div>
-                        </td>
-                        <td className="px-4 py-2">
-                          {data.findings_count > 0 ? (
-                            <span className={data.critical_findings > 0 ? 'text-red-600 font-medium' : 'text-slate-600'}>
-                              {data.findings_count} {data.critical_findings > 0 && `(${data.critical_findings} crit)`}
+                          <div>
+                            <p className="font-semibold text-slate-900 text-sm">{rpt.name}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{rpt.engagement}</p>
+                            <p className="text-xs text-slate-400 mt-1">
+                              Generated {rpt.generated} · {rpt.format} · {rpt.size}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 flex-shrink-0">
+                          {wf?.status === 'approved' && (
+                            <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded">
+                              <CheckCircle size={11} /> Approved
                             </span>
-                          ) : <span className="text-green-600">None</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          )}
+                          {isLocked && (
+                            <span className="inline-flex items-center gap-1 text-xs text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                              <Lock size={11} /> Locked
+                            </span>
+                          )}
+                          {!isLocked && (
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="ghost"><Eye size={13} /> Preview</Button>
+                              <Button size="sm" variant="secondary"><Download size={13} /> Download</Button>
+                            </div>
+                          )}
+                          {isLocked && (
+                            <Button size="sm" variant="secondary"><Download size={13} /> Download</Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Approval banner */}
+                      <ApprovalBanner
+                        workflow={wf ?? null}
+                        userRole={CURRENT_USER_ROLE}
+                        onSubmit={() => handleSubmitForApproval(rpt.id)}
+                        onApprove={() => { setApprovalReportId(rpt.id); setApprovalDecision('approve'); }}
+                        onReject={() => { setApprovalReportId(rpt.id); setApprovalDecision('reject'); }}
+                        onLock={() => setLockReportId(rpt.id)}
+                        onReturnToDraft={() => handleReturnToDraft(rpt.id)}
+                      />
+                    </div>
+                  </CardBody>
+                </Card>
+              );
+            })}
+
+            {/* Info card about release workflow */}
+            <Card className="border-dashed border-blue-200 bg-blue-50/50">
+              <CardBody>
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-blue-700">
+                    <p className="font-semibold">Report Release Workflow</p>
+                    <p className="mt-1 text-blue-600">
+                      Reports must be approved before release. Final lock requires password re-entry.
+                      Once locked, reports become read-only and are audit-trailed.
+                    </p>
+                  </div>
+                </div>
               </CardBody>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Sign-off modal (approve / reject) */}
+      <SignOffModal
+        isOpen={!!approvalReportId}
+        decision={approvalDecision}
+        onClose={() => setApprovalReportId(null)}
+        onConfirm={handleApprovalConfirm}
+        resourceLabel={activeReport ? activeReport.name : ''}
+        workflowType="report_release"
+      />
+
+      {/* Password confirmation dialog (lock) */}
+      <PasswordConfirmDialog
+        isOpen={!!lockReportId}
+        onClose={() => setLockReportId(null)}
+        onConfirm={handleLockConfirm}
+        reportName={lockReport ? lockReport.name : ''}
+      />
     </AppShell>
   );
 }

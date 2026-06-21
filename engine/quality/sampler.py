@@ -35,10 +35,8 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 from uuid import UUID
-
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -66,7 +64,7 @@ SUFFICIENCY_INSUFFICIENT = 0.60
 SUFFICIENCY_MARGINAL = 0.80
 
 
-class SufficiencyVerdict(str, Enum):
+class SufficiencyVerdict(StrEnum):
     SUFFICIENT = "sufficient"
     MARGINAL = "marginal"
     INSUFFICIENT = "insufficient"
@@ -82,7 +80,7 @@ class SamplingParameters:
     confidence_level: float   # 0.90, 0.95, or 0.99
     expected_deviation_rate: float  # p — expected error rate in population
     tolerable_deviation_rate: float  # e — maximum acceptable error rate (TDR)
-    population_size: Optional[int] = None  # N; None = treat as infinite
+    population_size: int | None = None  # N; None = treat as infinite
 
 
 @dataclass
@@ -93,7 +91,7 @@ class SampleSizeResult:
     confidence_level: float
     expected_deviation_rate: float
     tolerable_deviation_rate: float
-    population_size: Optional[int]
+    population_size: int | None
     z_score: float
     finite_correction_applied: bool
 

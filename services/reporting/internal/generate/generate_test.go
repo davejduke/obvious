@@ -2,6 +2,7 @@ package generate_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -208,6 +209,153 @@ func TestReportData_EvidenceChain(t *testing.T) {
 	}
 	if chain[0].Title != "Azure AD MFA Report" {
 		t.Errorf("unexpected evidence title: %s", chain[0].Title)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Working paper narrative PDF tests
+// ---------------------------------------------------------------------------
+
+func buildSampleReportWithNarratives() template.ReportData {
+	data := buildSampleReport()
+	data.Narratives = &template.WorkingPaperNarratives{
+		ModelID:          "anthropic.claude-sonnet-3-7-20250219-v1:0#mock",
+		Tone:             "formal",
+		IsMock:           true,
+		ExecutiveSummary: "This formal executive summary wraps the deterministic audit conclusion: Effective at 87.5% confidence.",
+		Methodology:      "Audit conducted per IIA Standard 4.1 using Cochran 1977 sampling and Bayesian risk scoring.",
+		Findings:         "2 findings detected. Risk scores are deterministic; this text is LLM-generated narrative only.",
+		Recommendations:  "Immediate action required on 0 critical items. Follow-up engagement recommended within 90 days.",
+	}
+	return data
+}
+
+func TestPDFGenerator_WithNarratives_GeneratesValidPDF(t *testing.T) {
+	gen := generate.NewPDFGenerator()
+	data := buildSampleReportWithNarratives()
+
+	pdf, err := gen.Generate(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !bytes.HasPrefix(pdf, []byte("%PDF")) {
+		t.Error("PDF with narratives does not start with PDF header")
+	}
+	if !bytes.Contains(pdf, []byte("%%EOF")) {
+		t.Error("PDF with narratives missing EOF trailer")
+	}
+}
+
+func TestPDFGenerator_WithNarratives_ContainsExecutiveSummaryText(t *testing.T) {
+	gen := generate.NewPDFGenerator()
+	data := buildSampleReportWithNarratives()
+	pdf, _ := gen.Generate(data)
+
+	// LLM narrative executive summary should appear in the PDF
+	if !bytes.Contains(pdf, []byte("deterministic audit conclusion")) {
+		t.Error("PDF missing LLM executive summary narrative text")
+	}
+}
+
+func TestPDFGenerator_WithNarratives_ContainsMethodologySection(t *testing.T) {
+	gen := generate.NewPDFGenerator()
+	data := buildSampleReportWithNarratives()
+	pdf, _ := gen.Generate(data)
+
+	if !bytes.Contains(pdf, []byte("METHODOLOGY")) {
+		t.Error("PDF missing METHODOLOGY section header")
+	}
+	if !bytes.Contains(pdf, []byte("IIA Standard 4.1")) {
+		t.Error("PDF missing IIA Standard 4.1 reference in methodology")
+	}
+}
+
+func TestPDFGenerator_WithNarratives_ContainsRecommendationsSection(t *testing.T) {
+	gen := generate.NewPDFGenerator()
+	data := buildSampleReportWithNarratives()
+	pdf, _ := gen.Generate(data)
+
+	if !bytes.Contains(pdf, []byte("RECOMMENDATIONS")) {
+		t.Error("PDF missing RECOMMENDATIONS section")
+	}
+}
+
+func TestPDFGenerator_WithNarratives_ContainsNarrativeLabel(t *testing.T) {
+	gen := generate.NewPDFGenerator()
+	data := buildSampleReportWithNarratives()
+	pdf, _ := gen.Generate(data)
+
+	// Narrative label should include tone and mock marker
+	if !bytes.Contains(pdf, []byte("tone=formal")) {
+		t.Error("PDF missing narrative tone label")
+	}
+	if !bytes.Contains(pdf, []byte("[mock]")) {
+		t.Error("PDF missing mock marker in narrative label")
+	}
+}
+
+func TestPDFGenerator_WithNarratives_DeterministicFindingsPreserved(t *testing.T) {
+	// Deterministic findings must still appear even with narratives present
+	gen := generate.NewPDFGenerator()
+	data := buildSampleReportWithNarratives()
+	pdf, _ := gen.Generate(data)
+
+	if !bytes.Contains(pdf, []byte("NIS2-F-001")) {
+		t.Error("deterministic finding ref NIS2-F-001 missing from narrative PDF")
+	}
+	if !bytes.Contains(pdf, []byte("NIS2-F-002")) {
+		t.Error("deterministic finding ref NIS2-F-002 missing from narrative PDF")
+	}
+}
+
+func TestPDFGenerator_NilNarratives_FallsBackToExecSummary(t *testing.T) {
+	// When Narratives is nil, ExecSummary field should be used (backwards compat)
+	gen := generate.NewPDFGenerator()
+	data := buildSampleReport() // Narratives == nil
+	pdf, err := gen.Generate(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !bytes.Contains(pdf, []byte("NIS2 Article 21 compliance")) {
+		t.Error("fallback ExecSummary text missing when Narratives is nil")
+	}
+}
+
+func TestWorkingPaperNarratives_JSONRoundTrip(t *testing.T) {
+	raw := `{"model_id":"anthropic.claude-sonnet-3-7#mock","tone":"executive","is_mock":true,"executive_summary":"Exec summary text","methodology":"Method text","findings":"Findings text","recommendations":"Recs text"}`
+	var n template.WorkingPaperNarratives
+	if err := json.Unmarshal([]byte(raw), &n); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if n.ExecutiveSummary != "Exec summary text" {
+		t.Errorf("unexpected ExecutiveSummary: %s", n.ExecutiveSummary)
+	}
+	if n.Tone != "executive" {
+		t.Errorf("unexpected Tone: %s", n.Tone)
+	}
+	if !n.IsMock {
+		t.Error("IsMock should be true")
+	}
+}
+
+func TestWorkingPaperNarratives_FieldsPresent(t *testing.T) {
+	n := template.WorkingPaperNarratives{
+		ModelID:          "anthropic.claude-sonnet-3-7#mock",
+		Tone:             "technical",
+		IsMock:           true,
+		ExecutiveSummary: "exec",
+		Methodology:      "method",
+		Findings:         "findings",
+		Recommendations:  "recs",
+	}
+	if n.ExecutiveSummary != "exec" {
+		t.Error("ExecutiveSummary field not set")
+	}
+	if !n.IsMock {
+		t.Error("IsMock should be true for stub")
+	}
+	if n.Tone != "technical" {
+		t.Error("Tone not set correctly")
 	}
 }
 
