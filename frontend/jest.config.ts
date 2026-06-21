@@ -8,9 +8,9 @@ const createJestConfig = nextJest({
 const config: Config = {
   coverageProvider: 'v8',
   testEnvironment: 'jsdom',
-  setupFilesAfterFramework: [],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@/(.*)$':       '<rootDir>/src/$1',
     '^@shared/(.*)$': '<rootDir>/../shared/types/typescript/$1',
   },
   testMatch: [

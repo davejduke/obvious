@@ -2,6 +2,9 @@
 import type {
   Engagement, Finding, Evidence, Control, NIS2ComplianceScore, Persona
 } from '@shared/index';
+import type {
+  ReasoningEngineState, WhatIfQuery, WhatIfResult
+} from '@/lib/reasoning-types';
 
 export const mockEngagements: Engagement[] = [
   {
@@ -177,6 +180,223 @@ export const mockControls: Control[] = [
     is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z',
   },
 ];
+
+// ---- Reasoning Engine mock data ----
+export const mockReasoningState: ReasoningEngineState = {
+  engagement_id: 'eng-001',
+  engagement_name: 'NIS 2 Article 21 Audit 2024',
+  overall_confidence: {
+    score: 72,
+    engagement_id: 'eng-001',
+    computed_at: '2024-01-25T10:00:00Z',
+    factors: [
+      {
+        name: 'scope',
+        label: 'Scope Coverage',
+        score: 85,
+        weight: 0.25,
+        contribution: 21.25,
+        breakdown: [
+          { label: 'Articles in scope', value: 100, detail: '10 / 10 articles mapped' },
+          { label: 'Control mapping rate', value: 76, detail: '65 / 85 controls mapped' },
+          { label: 'DAG completeness', value: 80, detail: '4 of 5 nodes completed' },
+        ],
+      },
+      {
+        name: 'risk',
+        label: 'Risk Assessment',
+        score: 68,
+        weight: 0.30,
+        contribution: 20.40,
+        breakdown: [
+          { label: 'Controls assessed', value: 76, detail: '65 / 85 controls assessed' },
+          { label: 'Critical zone controls', value: 40, detail: '3 of 7 critical resolved' },
+          { label: 'Residual risk score', value: 62, detail: 'Avg residual 9.4 / 25' },
+        ],
+      },
+      {
+        name: 'quality',
+        label: 'Evidence Quality',
+        score: 70,
+        weight: 0.30,
+        contribution: 21.00,
+        breakdown: [
+          { label: 'Evidence accepted rate', value: 78, detail: '42 / 54 items accepted' },
+          { label: 'Quality gate pass rate', value: 60, detail: '3 / 5 gates passed' },
+          { label: 'Sufficiency rate', value: 72, detail: '13 / 18 controls sufficient' },
+        ],
+      },
+      {
+        name: 'economy',
+        label: 'Work Economy',
+        score: 82,
+        weight: 0.15,
+        contribution: 12.30,
+        breakdown: [
+          { label: 'Budget utilisation', value: 80, detail: '320 / 400 hours used' },
+          { label: 'Milestone on-track', value: 90, detail: '9 / 10 milestones on time' },
+          { label: 'Resource allocation', value: 75, detail: '3 auditors assigned' },
+        ],
+      },
+    ],
+  },
+  quality_gates: [
+    {
+      control_id: 'ctrl-001',
+      control_title: 'Multi-Factor Authentication',
+      article_ref: '21b',
+      status: 'passed',
+      score: 82,
+      threshold: 70,
+      evidence_count: 8,
+      required_evidence: 6,
+      block_reasons: [],
+    },
+    {
+      control_id: 'ctrl-002',
+      control_title: 'Vulnerability Management',
+      article_ref: '21c',
+      status: 'passed',
+      score: 74,
+      threshold: 70,
+      evidence_count: 5,
+      required_evidence: 5,
+      block_reasons: [],
+    },
+    {
+      control_id: 'ctrl-003',
+      control_title: 'Incident Response Plan',
+      article_ref: '21d',
+      status: 'blocked',
+      score: 48,
+      threshold: 70,
+      evidence_count: 2,
+      required_evidence: 6,
+      block_reasons: ['floor_not_met', 'insufficient_evidence'],
+    },
+    {
+      control_id: 'ctrl-004',
+      control_title: 'Supply Chain Risk Assessment',
+      article_ref: '21a',
+      status: 'blocked',
+      score: 55,
+      threshold: 70,
+      evidence_count: 3,
+      required_evidence: 5,
+      block_reasons: ['floor_not_met'],
+    },
+    {
+      control_id: 'ctrl-005',
+      control_title: 'Network Segmentation',
+      article_ref: '21e',
+      status: 'passed',
+      score: 77,
+      threshold: 70,
+      evidence_count: 7,
+      required_evidence: 5,
+      block_reasons: [],
+    },
+  ],
+  evidence_sufficiency: [
+    { control_id: 'ctrl-001', control_title: 'Multi-Factor Authentication',   article_ref: '21b', collected: 8,  required: 6,  sufficiency_pct: 100, status: 'sufficient' },
+    { control_id: 'ctrl-002', control_title: 'Vulnerability Management',       article_ref: '21c', collected: 5,  required: 5,  sufficiency_pct: 100, status: 'sufficient' },
+    { control_id: 'ctrl-003', control_title: 'Incident Response Plan',         article_ref: '21d', collected: 2,  required: 6,  sufficiency_pct: 33,  status: 'insufficient' },
+    { control_id: 'ctrl-004', control_title: 'Supply Chain Risk Assessment',   article_ref: '21a', collected: 3,  required: 5,  sufficiency_pct: 60,  status: 'partial' },
+    { control_id: 'ctrl-005', control_title: 'Network Segmentation',           article_ref: '21e', collected: 7,  required: 5,  sufficiency_pct: 100, status: 'sufficient' },
+    { control_id: 'ctrl-006', control_title: 'Logging & Monitoring',           article_ref: '21f', collected: 4,  required: 5,  sufficiency_pct: 80,  status: 'partial' },
+    { control_id: 'ctrl-007', control_title: 'Access Control Policy',          article_ref: '21b', collected: 6,  required: 4,  sufficiency_pct: 100, status: 'sufficient' },
+    { control_id: 'ctrl-008', control_title: 'Business Continuity Plan',       article_ref: '21h', collected: 1,  required: 5,  sufficiency_pct: 20,  status: 'insufficient' },
+  ],
+  heat_map: {
+    controls: [
+      { control_id: 'ctrl-001', control_title: 'Multi-Factor Authentication',    impact: 4, likelihood: 2, zone: 'high',     article_ref: '21b' },
+      { control_id: 'ctrl-002', control_title: 'Vulnerability Management',        impact: 4, likelihood: 3, zone: 'high',     article_ref: '21c' },
+      { control_id: 'ctrl-003', control_title: 'Incident Response Plan',          impact: 3, likelihood: 4, zone: 'high',     article_ref: '21d' },
+      { control_id: 'ctrl-004', control_title: 'Supply Chain Risk Assessment',    impact: 5, likelihood: 3, zone: 'critical', article_ref: '21a' },
+      { control_id: 'ctrl-005', control_title: 'Network Segmentation',            impact: 5, likelihood: 4, zone: 'critical', article_ref: '21e' },
+      { control_id: 'ctrl-006', control_title: 'Logging & Monitoring',            impact: 2, likelihood: 3, zone: 'medium',   article_ref: '21f' },
+      { control_id: 'ctrl-007', control_title: 'Access Control Policy',           impact: 3, likelihood: 2, zone: 'medium',   article_ref: '21b' },
+      { control_id: 'ctrl-008', control_title: 'Business Continuity Plan',        impact: 4, likelihood: 4, zone: 'critical', article_ref: '21h' },
+    ],
+    zone_summary: { critical: 3, high: 3, medium: 2, low: 0 },
+  },
+  dag_nodes: [
+    { id: 'start',          label: 'Audit Initiation',              type: 'start',    status: 'completed',  x: 400, y: 40,  evidence_count: 2 },
+    { id: 'scope',          label: 'Scope Analysis\n(NIS 2 Art. 21)', type: 'process', status: 'completed',  x: 400, y: 120, evidence_count: 10 },
+    { id: 'evidence-collect', label: 'Evidence Collection',          type: 'process', status: 'completed',  x: 200, y: 220, evidence_count: 47, children_ids: ['risk-assess'] },
+    { id: 'control-map',    label: 'Control Mapping',                type: 'process', status: 'completed',  x: 600, y: 220, evidence_count: 65, children_ids: ['risk-assess'] },
+    { id: 'risk-assess',    label: 'Risk Assessment\nEngine',        type: 'decision', status: 'in_progress', x: 400, y: 320, evidence_count: 65 },
+    { id: 'finding-gen',    label: 'Finding Generation',             type: 'process', status: 'in_progress', x: 200, y: 420, evidence_count: 5 },
+    { id: 'scoring',        label: 'Compliance Scoring',             type: 'process', status: 'pending',    x: 600, y: 420, evidence_count: 0 },
+    { id: 'report-draft',   label: 'Report Drafting',                type: 'process', status: 'pending',    x: 400, y: 520, evidence_count: 0 },
+    { id: 'end',            label: 'Audit Complete',                 type: 'end',     status: 'pending',    x: 400, y: 600, evidence_count: 0 },
+  ],
+  dag_edges: [
+    { source: 'start', target: 'scope' },
+    { source: 'scope', target: 'evidence-collect' },
+    { source: 'scope', target: 'control-map' },
+    { source: 'evidence-collect', target: 'risk-assess' },
+    { source: 'control-map', target: 'risk-assess' },
+    { source: 'risk-assess', target: 'finding-gen' },
+    { source: 'risk-assess', target: 'scoring' },
+    { source: 'finding-gen', target: 'report-draft' },
+    { source: 'scoring', target: 'report-draft' },
+    { source: 'report-draft', target: 'end' },
+  ],
+};
+
+/** Deterministic What-If simulation (no LLM). */
+export function simulateWhatIf(query: WhatIfQuery): WhatIfResult {
+  const state = mockReasoningState;
+  const originalScore = state.overall_confidence.score;
+
+  const suffItem = state.evidence_sufficiency.find(e => e.control_id === query.control_id);
+  const gateItem = state.quality_gates.find(g => g.control_id === query.control_id);
+
+  const multiplier = query.action === 'add_evidence' ? 1 : -1;
+  const qualityWeight = query.evidence_quality_score / 100;
+  const evidenceDelta = multiplier * query.count * qualityWeight;
+
+  // Deterministic quality score impact: each high-quality evidence item shifts score
+  const scoreDelta = Math.round(evidenceDelta * 3.5);
+  const simulatedScore = Math.max(0, Math.min(100, originalScore + scoreDelta));
+
+  const gateOriginal = gateItem?.score ?? 50;
+  const gateSimulated = Math.max(0, Math.min(100, gateOriginal + Math.round(evidenceDelta * 5)));
+  const threshold = gateItem?.threshold ?? 70;
+
+  let gate_change: WhatIfResult['gate_change'] = 'no_change';
+  if (gateOriginal < threshold && gateSimulated >= threshold) gate_change = 'now_passes';
+  else if (gateOriginal >= threshold && gateSimulated < threshold) gate_change = 'now_blocks';
+
+  const sufficiencyOriginal = suffItem?.sufficiency_pct ?? 50;
+  const sufficiencySimulated = Math.max(0, Math.min(100,
+    sufficiencyOriginal + multiplier * query.count * 12));
+
+  const narrative = query.action === 'add_evidence'
+    ? `Adding ${query.count} evidence item${query.count !== 1 ? 's' : ''} at ${query.evidence_quality_score}% quality to "${gateItem?.control_title ?? query.control_id}" increases overall confidence by ${Math.abs(scoreDelta)} point${Math.abs(scoreDelta) !== 1 ? 's' : ''} (${
+        gate_change === 'now_passes' ? 'quality gate now PASSES' :
+        gate_change === 'now_blocks' ? 'quality gate now BLOCKS' :
+        'no gate change'
+      }).`
+    : `Removing ${query.count} evidence item${query.count !== 1 ? 's' : ''} from "${gateItem?.control_title ?? query.control_id}" decreases overall confidence by ${Math.abs(scoreDelta)} point${Math.abs(scoreDelta) !== 1 ? 's' : ''} (${
+        gate_change === 'now_passes' ? 'quality gate now PASSES' :
+        gate_change === 'now_blocks' ? 'quality gate now BLOCKS' :
+        'no gate change'
+      }).`;
+
+  return {
+    original_score: originalScore,
+    simulated_score: simulatedScore,
+    delta: scoreDelta,
+    affected_factors: [
+      { factor: 'Quality', original: gateOriginal, simulated: gateSimulated },
+      { factor: 'Evidence Sufficiency', original: sufficiencyOriginal, simulated: sufficiencySimulated },
+    ],
+    gate_change,
+    narrative,
+  };
+}
 
 export const personas: Array<{ id: Persona; label: string; description: string }> = [
   { id: 'internal_auditor', label: 'Internal Auditor', description: 'Fieldwork and testing focus' },
