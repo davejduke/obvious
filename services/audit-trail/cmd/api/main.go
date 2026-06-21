@@ -12,10 +12,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go.uber.org/zap"
 
+	svclogging "github.com/davejduke/obvious/shared/logging"
+	svcmetrics "github.com/davejduke/obvious/shared/metrics"
 	"github.com/davejduke/obvious/services/audit-trail/internal/config"
 	"github.com/davejduke/obvious/services/audit-trail/internal/handler"
 	"github.com/davejduke/obvious/services/audit-trail/internal/store"
@@ -33,16 +34,11 @@ func run() error {
 		return fmt.Errorf("config: %w", err)
 	}
 
-	var logger *zap.Logger
-	if cfg.Env == "production" {
-		logger, err = zap.NewProduction()
-	} else {
-		logger, err = zap.NewDevelopment()
-	}
-	if err != nil {
-		return fmt.Errorf("logger: %w", err)
-	}
-	defer logger.Sync() //nolint:errcheck
+	logger := svclogging.New("audit-trail")
+
+	// Start Prometheus metrics server on :9090.
+	metricsSrv := svcmetrics.StartServer(os.Getenv("METRICS_PORT"))
+	defer svcmetrics.StopServer(metricsSrv)
 
 	// Connect to PostgreSQL.
 	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
@@ -62,17 +58,17 @@ func run() error {
 	if err := pool.Ping(ctx); err != nil {
 		return fmt.Errorf("database ping: %w", err)
 	}
-	logger.Info("database connected")
+	logger.Info(context.Background(), "database.connected", nil)
 
 	s := store.New(pool)
-	h := handler.New(s, logger)
+	h := handler.New(s)
 
 	// Build Chi router.
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(svclogging.RequestIDMiddleware)
+	r.Use(svclogging.TraceContextMiddleware)
+	r.Use(chiMiddleware.RealIP)
+	r.Use(chiMiddleware.Recoverer)
 
 	// CORS headers for dev.
 	r.Use(func(next http.Handler) http.Handler {
@@ -114,9 +110,9 @@ func run() error {
 	}
 
 	go func() {
-		logger.Info("audit-trail listening", zap.String("port", cfg.Port))
+		logger.Info(context.Background(), "server.start", map[string]any{"port": cfg.Port})
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("server error", zap.Error(err))
+			logger.Error(context.Background(), "server.error", map[string]any{"error": err.Error()})
 		}
 	}()
 
@@ -129,7 +125,7 @@ func run() error {
 	if err := srv.Shutdown(shutCtx); err != nil {
 		return fmt.Errorf("server shutdown: %w", err)
 	}
-	logger.Info("audit-trail exited cleanly")
+	logger.Info(context.Background(), "server.shutdown", nil)
 	return nil
 }
 

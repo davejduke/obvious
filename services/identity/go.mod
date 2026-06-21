@@ -3,6 +3,8 @@ module github.com/davejduke/obvious/services/identity
 go 1.22
 
 require (
+	github.com/davejduke/obvious/shared/logging v0.0.0
+	github.com/davejduke/obvious/shared/metrics v0.0.0
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
@@ -22,4 +24,8 @@ require (
 	golang.org/x/text v0.16.0 // indirect
 )
 
-replace github.com/davejduke/obvious/shared/types => ../../shared/types/go
+replace (
+	github.com/davejduke/obvious/shared/logging => ../../shared/logging/go
+	github.com/davejduke/obvious/shared/metrics => ../../shared/metrics/go
+	github.com/davejduke/obvious/shared/types => ../../shared/types/go
+)

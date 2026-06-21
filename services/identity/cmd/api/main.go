@@ -16,6 +16,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	svclogging "github.com/davejduke/obvious/shared/logging"
+	svcmetrics "github.com/davejduke/obvious/shared/metrics"
 	"github.com/davejduke/obvious/services/identity/internal/config"
 	"github.com/davejduke/obvious/services/identity/internal/handlers"
 	idmw "github.com/davejduke/obvious/services/identity/internal/middleware"
@@ -28,28 +30,38 @@ import (
 func main() {
 	cfg := config.Load()
 
+	logger := svclogging.New("identity")
+
+	// Start Prometheus metrics server on :9090.
+	metricsSrv := svcmetrics.StartServer(os.Getenv("METRICS_PORT"))
+	defer svcmetrics.StopServer(metricsSrv)
+
 	// ── PostgreSQL ──────────────────────────────────────────────────────────────
 	ctx := context.Background()
 	dbPool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("[identity] connect postgres: %v", err)
+		logger.Critical(context.Background(), "db.connect_failed", map[string]any{"error": err.Error()})
+os.Exit(1)
 	}
 	defer dbPool.Close()
 	if err := dbPool.Ping(ctx); err != nil {
-		log.Fatalf("[identity] ping postgres: %v", err)
+		logger.Critical(context.Background(), "db.ping_failed", map[string]any{"error": err.Error()})
+os.Exit(1)
 	}
-	log.Println("[identity] PostgreSQL connected")
+	logger.Info(context.Background(), "db.connected", map[string]any{"db": "postgres"})
 
 	// ── Redis ───────────────────────────────────────────────────────────────────
 	redisOpts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
-		log.Fatalf("[identity] parse redis url: %v", err)
+		logger.Critical(context.Background(), "redis.parse_url_failed", map[string]any{"error": err.Error()})
+os.Exit(1)
 	}
 	redisClient := redis.NewClient(redisOpts)
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		log.Fatalf("[identity] ping redis: %v", err)
+		logger.Critical(context.Background(), "redis.ping_failed", map[string]any{"error": err.Error()})
+os.Exit(1)
 	}
-	log.Println("[identity] Redis connected")
+	logger.Info(context.Background(), "db.connected", map[string]any{"db": "redis"})
 	defer redisClient.Close()
 
 	// ── JWT Manager ─────────────────────────────────────────────────────────────
@@ -61,7 +73,8 @@ func main() {
 		"identity.aiauditor", accessTTL, refreshTTL,
 	)
 	if err != nil {
-		log.Fatalf("[identity] init jwt manager: %v", err)
+		logger.Critical(context.Background(), "jwt.init_failed", map[string]any{"error": err.Error()})
+os.Exit(1)
 	}
 
 	// ── Dependencies ────────────────────────────────────────────────────────────
@@ -78,6 +91,8 @@ func main() {
 
 	// ── Router ──────────────────────────────────────────────────────────────────
 	r := chi.NewRouter()
+	r.Use(svclogging.RequestIDMiddleware)
+	r.Use(svclogging.TraceContextMiddleware)
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.Logger)
@@ -147,7 +162,7 @@ func main() {
 	go func() {
 		log.Printf("[identity] listening on :%s", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("[identity] server error: %v", err)
+			logger.Error(context.Background(), "server.error", map[string]any{"error": err.Error()})
 		}
 	}()
 
@@ -158,9 +173,9 @@ func main() {
 	shutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutCtx); err != nil {
-		log.Fatalf("[identity] forced shutdown: %v", err)
+		logger.Error(context.Background(), "server.shutdown_error", map[string]any{"error": err.Error()})
 	}
-	log.Println("[identity] server exited")
+	logger.Info(context.Background(), "server.shutdown", nil)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

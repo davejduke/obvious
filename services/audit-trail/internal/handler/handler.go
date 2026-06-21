@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 
+	svclogging "github.com/davejduke/obvious/shared/logging"
 	"github.com/davejduke/obvious/services/audit-trail/internal/hashchain"
 	"github.com/davejduke/obvious/services/audit-trail/internal/model"
 	"github.com/davejduke/obvious/services/audit-trail/internal/store"
@@ -26,12 +26,12 @@ const (
 // Handler holds dependencies for all HTTP handlers.
 type Handler struct {
 	store  *store.Store
-	logger *zap.Logger
+	logger *svclogging.Logger
 }
 
 // New returns a configured Handler.
-func New(s *store.Store, logger *zap.Logger) *Handler {
-	return &Handler{store: s, logger: logger}
+func New(s *store.Store) *Handler {
+	return &Handler{store: s, logger: svclogging.New("audit-trail")}
 }
 
 // Routes registers all audit-trail routes on the given chi.Router.
@@ -80,21 +80,21 @@ func (h *Handler) AppendEvent(w http.ResponseWriter, r *http.Request) {
 
 	prevHash, err := h.store.GetLastHash(ctx, req.OrgID)
 	if err != nil {
-		h.logger.Error("failed to get last hash", zap.Error(err))
+		h.logger.Error(ctx, "hashchain.get_last_hash_failed", map[string]any{"error": err.Error()})
 		httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to retrieve chain head")
 		return
 	}
 
 	eventHash, err := hashchain.Compute(prevHash, &req, occurredAt)
 	if err != nil {
-		h.logger.Error("failed to compute hash", zap.Error(err))
+		h.logger.Error(ctx, "hashchain.compute_failed", map[string]any{"error": err.Error()})
 		httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to compute event hash")
 		return
 	}
 
 	event, err := h.store.Append(ctx, &req, eventHash, prevHash, occurredAt)
 	if err != nil {
-		h.logger.Error("failed to append event", zap.Error(err))
+		h.logger.Error(ctx, "audit_event.append_failed", map[string]any{"error": err.Error()})
 		httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to persist event")
 		return
 	}
@@ -140,7 +140,7 @@ func (h *Handler) QueryEvents(w http.ResponseWriter, r *http.Request) {
 		}
 		events, err := h.store.QueryByEntity(ctx, orgID, entityType, eid, limit, offset)
 		if err != nil {
-			h.logger.Error("query by entity failed", zap.Error(err))
+			h.logger.Error(ctx, "audit_event.query_entity_failed", map[string]any{"error": err.Error()})
 			httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "query failed")
 			return
 		}
@@ -162,7 +162,7 @@ func (h *Handler) QueryEvents(w http.ResponseWriter, r *http.Request) {
 		}
 		events, err := h.store.QueryByUser(ctx, orgID, actorID, start, end, limit, offset)
 		if err != nil {
-			h.logger.Error("query by user failed", zap.Error(err))
+			h.logger.Error(ctx, "audit_event.query_user_failed", map[string]any{"error": err.Error()})
 			httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "query failed")
 			return
 		}
@@ -192,7 +192,7 @@ func (h *Handler) VerifyChain(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.store.AllEventsForOrg(ctx, orgID)
 	if err != nil {
-		h.logger.Error("verify chain: stream failed", zap.Error(err))
+		h.logger.Error(ctx, "hashchain.stream_failed", map[string]any{"error": err.Error()})
 		httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to stream events")
 		return
 	}
@@ -205,7 +205,7 @@ func (h *Handler) VerifyChain(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		ev := &model.AuditEvent{}
 		if err := store.ScanEvent(rows, ev); err != nil {
-			h.logger.Error("verify chain: scan error", zap.Error(err))
+			h.logger.Error(ctx, "hashchain.scan_failed", map[string]any{"error": err.Error()})
 			httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "scan error during verification")
 			return
 		}
@@ -218,7 +218,7 @@ func (h *Handler) VerifyChain(w http.ResponseWriter, r *http.Request) {
 		prevHash = ev.EventHash
 	}
 	if err := rows.Err(); err != nil {
-		h.logger.Error("verify chain: rows error", zap.Error(err))
+		h.logger.Error(ctx, "hashchain.rows_error", map[string]any{"error": err.Error()})
 		httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "rows error during verification")
 		return
 	}
@@ -270,7 +270,7 @@ func (h *Handler) MetaAudit(w http.ResponseWriter, r *http.Request) {
 
 	events, err := h.store.MetaAudit(ctx, orgID, engagementID, limit, offset)
 	if err != nil {
-		h.logger.Error("meta audit query failed", zap.Error(err))
+		h.logger.Error(ctx, "meta_audit.query_failed", map[string]any{"error": err.Error()})
 		httpError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "meta audit query failed")
 		return
 	}
