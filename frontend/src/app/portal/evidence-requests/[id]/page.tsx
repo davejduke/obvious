@@ -102,9 +102,9 @@ export default function EvidenceRequestDetailPage({
 
   async function handleSubmit() {
     const valid = pendingFiles.filter((f) => !f.error);
-    if (valid.length === 0 && request.evidence_ids.length === 0) return;
+    if (valid.length === 0 && request!.evidence_ids.length === 0) return;
     setSubmitting(true);
-    setUploadingRequestId(request.id);
+    setUploadingRequestId(request!.id);
     // Simulate upload delay (production: POST /api/v1/portal/evidence-requests/:id/upload)
     await new Promise((resolve) => setTimeout(resolve, 1200));
     setSubmitting(false);

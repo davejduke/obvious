@@ -2,7 +2,7 @@
  * Management response lifecycle tests
  */
 import { useManagementResponseStore } from '../store/management-responses';
-import type { ManagementResponseStatus } from '@shared/index';
+import type { AuditManagementStatus } from '@shared/index';
 
 // Reset store before each test by re-creating state
 beforeEach(() => {
@@ -29,7 +29,7 @@ describe('Management response store', () => {
   it('contains all 5 status stages across initial data', () => {
     const { responses } = useManagementResponseStore.getState();
     const statuses = new Set(responses.map(r => r.status));
-    const expected: ManagementResponseStatus[] = [
+    const expected: AuditManagementStatus[] = [
       'pending', 'accepted', 'implementation_planned', 'implemented', 'verified'
     ];
     for (const s of expected) {

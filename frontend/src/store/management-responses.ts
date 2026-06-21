@@ -1,15 +1,15 @@
 import { create } from 'zustand';
-import type { ManagementResponse, ManagementResponseStatus } from '@shared/index';
+import type { AuditManagementResponse, AuditManagementStatus } from '@shared/index';
 import { mockFindings } from '@/lib/mock-data';
 
 // Build initial mock responses from existing findings
-function buildInitialResponses(): ManagementResponse[] {
+function buildInitialResponses(): AuditManagementResponse[] {
   return mockFindings.map((f, i) => {
-    const statusMap: ManagementResponseStatus[] = [
+    const statusMap: AuditManagementStatus[] = [
       'pending', 'accepted', 'implementation_planned', 'implemented', 'verified'
     ];
     const status = statusMap[i % statusMap.length];
-    const base: ManagementResponse = {
+    const base: AuditManagementResponse = {
       id: `mr-${f.id}`,
       finding_id: f.id,
       finding_ref: f.finding_ref,
@@ -46,9 +46,9 @@ function buildInitialResponses(): ManagementResponse[] {
 }
 
 interface ManagementResponseState {
-  responses: ManagementResponse[];
-  updateResponse: (id: string, patch: Partial<ManagementResponse>) => void;
-  transitionStatus: (id: string, newStatus: ManagementResponseStatus, meta?: Partial<ManagementResponse>) => void;
+  responses: AuditManagementResponse[];
+  updateResponse: (id: string, patch: Partial<AuditManagementResponse>) => void;
+  transitionStatus: (id: string, newStatus: AuditManagementStatus, meta?: Partial<AuditManagementResponse>) => void;
 }
 
 export const useManagementResponseStore = create<ManagementResponseState>((set) => ({
@@ -66,7 +66,7 @@ export const useManagementResponseStore = create<ManagementResponseState>((set) 
       responses: s.responses.map(r => {
         if (r.id !== id) return r;
         const now = new Date().toISOString();
-        const updates: Partial<ManagementResponse> = { ...meta, status: newStatus, updated_at: now };
+        const updates: Partial<AuditManagementResponse> = { ...meta, status: newStatus, updated_at: now };
 
         if (newStatus === 'accepted' && !r.accepted_at) {
           updates.accepted_at = now;

@@ -288,22 +288,27 @@ export interface NIS2ComplianceScore {
 
 // ============================================================
 // Management Response Tracking
+
+// ============================================================
+// Management Response Tracking — audit lifecycle
+// (distinct from ManagementResponse portal entity above)
 // ============================================================
 
-export type ManagementResponseStatus =
+export type AuditManagementStatus =
   | 'pending'
   | 'accepted'
   | 'implementation_planned'
   | 'implemented'
   | 'verified';
 
-export interface ManagementResponse {
+/** Full lifecycle tracker: finding → accepted → planned → implemented → verified */
+export interface AuditManagementResponse {
   id: string;
   finding_id: string;
   finding_ref: string;
   finding_title: string;
   finding_severity: FindingSeverity;
-  status: ManagementResponseStatus;
+  status: AuditManagementStatus;
   // Management acceptance
   accepted_by?: string;
   accepted_at?: string;

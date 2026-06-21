@@ -4,7 +4,7 @@ import { Card, CardHeader, CardBody, MetricCard } from '@/components/ui/card';
 import { SeverityBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useManagementResponseStore } from '@/store/management-responses';
-import type { ManagementResponse, ManagementResponseStatus } from '@shared/index';
+import type { AuditManagementResponse, AuditManagementStatus } from '@shared/index';
 import { useState } from 'react';
 import { clsx } from 'clsx';
 import {
@@ -14,7 +14,7 @@ import {
 
 /* ---------- Status helpers ---------- */
 
-const STATUS_META: Record<ManagementResponseStatus, { label: string; color: string; icon: React.ElementType }> = {
+const STATUS_META: Record<AuditManagementStatus, { label: string; color: string; icon: React.ElementType }> = {
   pending:                { label: 'Pending',             color: 'bg-slate-100 text-slate-700',       icon: Clock },
   accepted:               { label: 'Accepted',            color: 'bg-blue-100 text-blue-700',         icon: CheckCircle2 },
   implementation_planned: { label: 'Plan Created',        color: 'bg-amber-100 text-amber-700',       icon: ClipboardList },
@@ -22,11 +22,11 @@ const STATUS_META: Record<ManagementResponseStatus, { label: string; color: stri
   verified:               { label: 'Verified',            color: 'bg-green-100 text-green-700',       icon: BadgeCheck },
 };
 
-const STATUS_ORDER: ManagementResponseStatus[] = [
+const STATUS_ORDER: AuditManagementStatus[] = [
   'pending', 'accepted', 'implementation_planned', 'implemented', 'verified'
 ];
 
-function StatusBadge({ status }: { status: ManagementResponseStatus }) {
+function StatusBadge({ status }: { status: AuditManagementStatus }) {
   const meta = STATUS_META[status];
   const Icon = meta.icon;
   return (
@@ -39,7 +39,7 @@ function StatusBadge({ status }: { status: ManagementResponseStatus }) {
 
 /* ---------- Timeline ---------- */
 
-function StatusTimeline({ response }: { response: ManagementResponse }) {
+function StatusTimeline({ response }: { response: AuditManagementResponse }) {
   const current = STATUS_ORDER.indexOf(response.status);
 
   const milestones = [
@@ -78,9 +78,9 @@ function StatusTimeline({ response }: { response: ManagementResponse }) {
 /* ---------- Transition modal ---------- */
 
 interface TransitionModalProps {
-  response: ManagementResponse;
-  targetStatus: ManagementResponseStatus;
-  onConfirm: (notes: string, extra: Partial<ManagementResponse>) => void;
+  response: AuditManagementResponse;
+  targetStatus: AuditManagementStatus;
+  onConfirm: (notes: string, extra: Partial<AuditManagementResponse>) => void;
   onCancel: () => void;
 }
 
@@ -91,7 +91,7 @@ function TransitionModal({ response, targetStatus, onConfirm, onCancel }: Transi
   const [plan, setPlan] = useState('');
 
   function handleConfirm() {
-    const extra: Partial<ManagementResponse> = {};
+    const extra: Partial<AuditManagementResponse> = {};
     if (targetStatus === 'accepted') extra.acceptance_notes = notes;
     if (targetStatus === 'implementation_planned') {
       extra.implementation_plan = plan;
@@ -171,9 +171,9 @@ function TransitionModal({ response, targetStatus, onConfirm, onCancel }: Transi
 
 /* ---------- Row ---------- */
 
-function ResponseRow({ response }: { response: ManagementResponse }) {
+function ResponseRow({ response }: { response: AuditManagementResponse }) {
   const [expanded, setExpanded] = useState(false);
-  const [transitioning, setTransitioning] = useState<ManagementResponseStatus | null>(null);
+  const [transitioning, setTransitioning] = useState<AuditManagementStatus | null>(null);
   const { transitionStatus } = useManagementResponseStore();
 
   const currentIdx = STATUS_ORDER.indexOf(response.status);
@@ -182,7 +182,7 @@ function ResponseRow({ response }: { response: ManagementResponse }) {
   const isOverdue = response.implementation_due_date && response.status !== 'verified' && response.status !== 'implemented'
     && new Date(response.implementation_due_date) < new Date();
 
-  function handleTransition(notes: string, extra: Partial<ManagementResponse>) {
+  function handleTransition(notes: string, extra: Partial<AuditManagementResponse>) {
     if (!transitioning) return;
     transitionStatus(response.id, transitioning, extra);
     setTransitioning(null);
@@ -288,7 +288,7 @@ function ResponseRow({ response }: { response: ManagementResponse }) {
 
 export default function ManagementResponsesPage() {
   const { responses } = useManagementResponseStore();
-  const [statusFilter, setStatusFilter] = useState<ManagementResponseStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<AuditManagementStatus | 'all'>('all');
 
   const displayed = responses.filter(r =>
     statusFilter === 'all' ? true : r.status === statusFilter
