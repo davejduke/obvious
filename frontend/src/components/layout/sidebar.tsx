@@ -5,7 +5,7 @@ import { clsx } from 'clsx';
 import {
   LayoutDashboard, Briefcase, ShieldCheck, FileSearch,
   Network, AlertTriangle, FileText, Settings, ChevronLeft,
-  ChevronRight, Activity, CalendarDays
+  ChevronRight, Activity, CalendarDays, BarChart3,
 } from 'lucide-react';
 import { useAppStore } from '@/store/app';
 
@@ -17,8 +17,9 @@ const navItems = [
   { href: '/evidence', label: 'Evidence', icon: FileSearch },
   { href: '/reasoning', label: 'Reasoning', icon: Network },
   { href: '/findings', label: 'Findings', icon: AlertTriangle },
-  { href: '/reports', label: 'Reports', icon: FileText },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/reports',   label: 'Reports', icon: FileText },
+  { href: '/qaip',      label: 'QAIP',    icon: BarChart3 },
+  { href: '/settings',  label: 'Settings', icon: Settings },
 ];
 
 export function Sidebar() {
