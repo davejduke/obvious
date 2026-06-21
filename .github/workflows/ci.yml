@@ -151,6 +151,14 @@ jobs:
             echo "OK: $svc"
           done
 
+      - name: Build and test Connector SDK
+        run: |
+          cd sdk/connector
+          go mod tidy
+          go build ./...
+          go test ./... -count=1 -timeout 60s
+          echo "OK: sdk/connector"
+
   validate-python-tests:
     name: Run Python engine tests
     runs-on: ubuntu-latest
