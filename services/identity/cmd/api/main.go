@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -160,7 +159,7 @@ os.Exit(1)
 	}
 
 	go func() {
-		log.Printf("[identity] listening on :%s", cfg.Port)
+		logger.Info(context.Background(), "server.start", map[string]any{"port": cfg.Port})
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error(context.Background(), "server.error", map[string]any{"error": err.Error()})
 		}

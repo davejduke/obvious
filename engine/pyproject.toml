@@ -22,6 +22,7 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "celery>=5.4.0",
     "numpy>=2.0.0",
+    "prometheus-client>=0.20.0",
     "scipy>=1.13.0",
 ]
 
