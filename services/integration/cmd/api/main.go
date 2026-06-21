@@ -19,6 +19,7 @@ import (
 	"github.com/davejduke/obvious/services/integration/internal/connector"
 	"github.com/davejduke/obvious/services/integration/internal/grc"
 	"github.com/davejduke/obvious/services/integration/internal/handler"
+	"github.com/davejduke/obvious/services/integration/internal/vulnconnector"
 )
 
 func main() {
@@ -86,8 +87,35 @@ func main() {
 	})
 	grcReg.Register(serviceNowAdapter)
 
+	// ── Vulnerability/endpoint connector registry ──────────────────────────
+	vulnReg := vulnconnector.NewVulnRegistry()
+
+	qualysAdapter := adapters.NewQualysAdapter(adapters.QualysConfig{
+		BaseURL:  os.Getenv("QUALYS_BASE_URL"),
+		Username: os.Getenv("QUALYS_USERNAME"),
+		Password: os.Getenv("QUALYS_PASSWORD"),
+		MockMode: os.Getenv("MOCK_MODE") != "false",
+	})
+	vulnReg.Register(qualysAdapter)
+
+	tenableAdapter := adapters.NewTenableAdapter(adapters.TenableConfig{
+		BaseURL:   os.Getenv("TENABLE_BASE_URL"),
+		AccessKey: os.Getenv("TENABLE_ACCESS_KEY"),
+		SecretKey: os.Getenv("TENABLE_SECRET_KEY"),
+		MockMode:  os.Getenv("MOCK_MODE") != "false",
+	})
+	vulnReg.Register(tenableAdapter)
+
+	crowdStrikeAdapter := adapters.NewCrowdStrikeAdapter(adapters.CrowdStrikeConfig{
+		BaseURL:      os.Getenv("CROWDSTRIKE_BASE_URL"),
+		ClientID:     os.Getenv("CROWDSTRIKE_CLIENT_ID"),
+		ClientSecret: os.Getenv("CROWDSTRIKE_CLIENT_SECRET"),
+		MockMode:     os.Getenv("MOCK_MODE") != "false",
+	})
+	vulnReg.Register(crowdStrikeAdapter)
+
 	// ── Routes ────────────────────────────────────────────────────────────
-	integrationHandler := handler.NewIntegrationHandlerWithGRC(reg, grcReg)
+	integrationHandler := handler.NewIntegrationHandlerFull(reg, grcReg, vulnReg)
 	integrationHandler.RegisterRoutes(r)
 
 	srv := &http.Server{
