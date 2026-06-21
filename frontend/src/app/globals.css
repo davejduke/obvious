@@ -1,22 +1,113 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* ============================================================
+   DESIGN TOKENS — Light mode (default)
+   ============================================================ */
 :root {
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  /* Risk palette */
+  /* Risk palette (same in both modes) */
   --color-critical: #DC2626;
   --color-high: #EA580C;
   --color-medium: #CA8A04;
   --color-low: #16A34A;
   --color-info: #2563EB;
+
+  /* Backgrounds */
+  --bg-app:            #F8FAFC;
+  --bg-surface:        #FFFFFF;
+  --bg-muted:          #F1F5F9;
+  --bg-hover:          #F1F5F9;
+  --bg-sidebar:        #0F172A;
+  --bg-sidebar-hover:  #1E293B;
+
+  /* Borders */
+  --border-default: #E2E8F0;
+  --border-strong:  #CBD5E1;
+
+  /* Text */
+  --text-primary:   #0F172A;
+  --text-secondary: #475569;
+  --text-muted:     #94A3B8;
+  --text-inverse:   #FFFFFF;
+
+  /* Brand */
+  --brand-600: #2563EB;
+  --brand-50:  #EFF6FF;
+
+  /* Interactive */
+  --ring-focus: #3B82F6;
+
+  /* Header */
+  --bg-header:     #FFFFFF;
+  --border-header: #E2E8F0;
+}
+
+/* ============================================================
+   DESIGN TOKENS — Dark mode (manual .dark class)
+   ============================================================ */
+.dark {
+  --bg-app:            #0F172A;
+  --bg-surface:        #1E293B;
+  --bg-muted:          #0F172A;
+  --bg-hover:          #334155;
+  --bg-sidebar:        #020617;
+  --bg-sidebar-hover:  #1E293B;
+
+  --border-default: #334155;
+  --border-strong:  #475569;
+
+  --text-primary:   #F1F5F9;
+  --text-secondary: #CBD5E1;
+  --text-muted:     #64748B;
+  --text-inverse:   #0F172A;
+
+  --brand-600: #3B82F6;
+  --brand-50:  #1E3A5F;
+
+  --ring-focus: #60A5FA;
+
+  --bg-header:     #1E293B;
+  --border-header: #334155;
+}
+
+/* System preference — applied when no manual override */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --bg-app:            #0F172A;
+    --bg-surface:        #1E293B;
+    --bg-muted:          #0F172A;
+    --bg-hover:          #334155;
+    --bg-sidebar:        #020617;
+    --bg-sidebar-hover:  #1E293B;
+
+    --border-default: #334155;
+    --border-strong:  #475569;
+
+    --text-primary:   #F1F5F9;
+    --text-secondary: #CBD5E1;
+    --text-muted:     #64748B;
+    --text-inverse:   #0F172A;
+
+    --brand-600: #3B82F6;
+    --brand-50:  #1E3A5F;
+
+    --ring-focus: #60A5FA;
+
+    --bg-header:     #1E293B;
+    --border-header: #334155;
+  }
 }
 
 html, body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 code, pre, .font-mono {
