@@ -5,6 +5,8 @@ go 1.22
 require github.com/gin-gonic/gin v1.10.0
 
 require (
+	github.com/davejduke/obvious/shared/logging v0.0.0
+	github.com/davejduke/obvious/shared/metrics v0.0.0
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
@@ -35,4 +37,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/davejduke/obvious/shared/types => ../../shared/types/go
+replace (
+	github.com/davejduke/obvious/shared/logging => ../../shared/logging/go
+	github.com/davejduke/obvious/shared/metrics => ../../shared/metrics/go
+	github.com/davejduke/obvious/shared/types => ../../shared/types/go
+)

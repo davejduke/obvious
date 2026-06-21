@@ -1,0 +1,25 @@
+#!/bin/sh
+# Obvious sandbox co-author hook
+# Appends Co-authored-by trailer when OBVIOUS_USER_NAME and OBVIOUS_USER_EMAIL are set.
+COMMIT_MSG_FILE="$1"
+COMMIT_SOURCE="$2"
+
+# Skip when there is no user identity to inject
+if [ -z "$OBVIOUS_USER_NAME" ] || [ -z "$OBVIOUS_USER_EMAIL" ]; then
+  exit 0
+fi
+
+# Skip merge commits — they carry their own attribution
+if [ "$COMMIT_SOURCE" = "merge" ]; then
+  exit 0
+fi
+
+TRAILER="Co-authored-by: ${OBVIOUS_USER_NAME} <${OBVIOUS_USER_EMAIL}>"
+
+# Idempotency: do not double-append if the trailer already exists
+if grep -qF "$TRAILER" "$COMMIT_MSG_FILE" 2>/dev/null; then
+  exit 0
+fi
+
+# Append: blank line separator, then trailer
+printf '\n%s\n' "$TRAILER" >> "$COMMIT_MSG_FILE"

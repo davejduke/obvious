@@ -4,13 +4,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	svclogging "github.com/davejduke/obvious/shared/logging"
+	svcmetrics "github.com/davejduke/obvious/shared/metrics"
 	"github.com/davejduke/obvious/services/control-framework/internal/handlers"
 	"github.com/davejduke/obvious/services/control-framework/internal/middleware"
 	"github.com/davejduke/obvious/services/control-framework/internal/repository"
@@ -21,6 +22,12 @@ import (
 )
 
 func main() {
+	logger := svclogging.New("control-framework")
+
+	// Start Prometheus metrics server on :9090.
+	metricsSrv := svcmetrics.StartServer(os.Getenv("METRICS_PORT"))
+	defer svcmetrics.StopServer(metricsSrv)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8082"
@@ -34,14 +41,15 @@ func main() {
 		defer cancel()
 		pool, err := pgxpool.New(ctx, dbURL)
 		if err != nil {
-			log.Fatalf("[control-framework] db connect: %v", err)
+			logger.Critical(context.Background(), "db.connect_failed", map[string]any{"error": err.Error()})
+os.Exit(1)
 		}
 		defer pool.Close()
 		repo = repository.NewPostgresRepository(pool)
-		log.Printf("[control-framework] connected to PostgreSQL")
+		logger.Info(context.Background(), "db.connected", nil)
 	} else {
 		repo = repository.NewMemoryRepository()
-		log.Printf("[control-framework] using in-memory repository (no DATABASE_URL)")
+		logger.Warn(context.Background(), "db.using_memory", map[string]any{"reason": "no DATABASE_URL"})
 	}
 
 	svc := service.New(repo)
@@ -52,10 +60,11 @@ func main() {
 
 	// Router
 	r := chi.NewRouter()
-	r.Use(chiMiddleware.Logger)
+	r.Use(svclogging.RequestIDMiddleware)
+	r.Use(svclogging.TraceContextMiddleware)
 	r.Use(chiMiddleware.Recoverer)
-	r.Use(chiMiddleware.RequestID)
 	r.Use(chiMiddleware.RealIP)
+	r.Use(svcmetrics.Middleware("control-framework"))
 
 	// Health / ready (no auth required)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -98,9 +107,9 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("[control-framework] listening on :%s", port)
+		logger.Info(context.Background(), "server.start", map[string]any{"port": port})
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+			logger.Error(context.Background(), "server.error", map[string]any{"error": err.Error()})
 		}
 	}()
 
@@ -111,7 +120,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("forced shutdown: %v", err)
+		logger.Error(context.Background(), "server.shutdown_error", map[string]any{"error": err.Error()})
 	}
-	log.Println("[control-framework] server exited")
+	logger.Info(context.Background(), "server.shutdown", nil)
 }

@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,12 +12,21 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	svclogging "github.com/davejduke/obvious/shared/logging"
+	svcmetrics "github.com/davejduke/obvious/shared/metrics"
+
 	"github.com/davejduke/obvious/services/integration/internal/adapters"
 	"github.com/davejduke/obvious/services/integration/internal/connector"
 	"github.com/davejduke/obvious/services/integration/internal/handler"
 )
 
 func main() {
+	logger := svclogging.New("integration")
+
+	// Start Prometheus metrics server on :9090.
+	metricsSrv := svcmetrics.StartServer(os.Getenv("METRICS_PORT"))
+	defer svcmetrics.StopServer(metricsSrv)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8085"
@@ -30,7 +38,6 @@ func main() {
 	}
 
 	r := gin.New()
-	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
 	r.GET("/health", func(c *gin.Context) {
@@ -71,16 +78,16 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      r,
+		Handler: svclogging.RequestIDMiddleware(svclogging.TraceContextMiddleware(svcmetrics.Middleware("integration")(r))),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
 	go func() {
-		log.Printf("[integration] listening on :%s", port)
+		logger.Info(context.Background(), "server.start", map[string]any{"port": port})
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+			logger.Error(context.Background(), "server.error", map[string]any{"error": err.Error()})
 		}
 	}()
 
@@ -91,8 +98,8 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("forced shutdown: %v", err)
+		logger.Error(context.Background(), "server.shutdown_error", map[string]any{"error": err.Error()})
 	}
-	log.Println("[integration] server exited")
+	logger.Info(context.Background(), "server.shutdown", nil)
 }
 

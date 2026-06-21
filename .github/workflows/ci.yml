@@ -112,6 +112,65 @@ jobs:
       - name: Validate TypeScript types file
         run: node scripts/validate_types.js
 
+  validate-go:
+    name: Validate Go services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: false
+
+      - name: Build and test shared/logging
+        run: |
+          cd shared/logging/go
+          go mod tidy
+          go build ./...
+          go test ./...
+
+      - name: Build and test shared/metrics
+        run: |
+          cd shared/metrics/go
+          go mod tidy
+          go build ./...
+          go test ./...
+
+      - name: Build all Go services
+        run: |
+          set -e
+          for svc in identity control-framework evidence audit-trail engagement integration reporting webhook; do
+            echo "Building services/$svc..."
+            cd services/$svc
+            go mod tidy
+            go build ./...
+            go test ./...
+            cd ../..
+            echo "OK: $svc"
+          done
+
+  validate-python-tests:
+    name: Run Python engine tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install engine dependencies
+        run: |
+          pip install -e "engine[dev]"
+
+      - name: Run engine tests
+        run: |
+          # Run from repo root so 'engine' is importable as a package
+          python -m pytest engine/tests/ -v --tb=short --rootdir=.
+
   validate-sql:
     name: Validate SQL migrations
     runs-on: ubuntu-latest

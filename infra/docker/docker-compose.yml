@@ -16,6 +16,7 @@ version: "3.9"
 #   audit-trail       8086:8086
 #   reporting         8087:8087
 #   engine            8088:8088
+#   gateway           8080:8080
 #   frontend          3000:3000
 # ============================================================
 
@@ -46,10 +47,12 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: aiauditor-redis
+    command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -159,11 +162,14 @@ services:
     environment:
       PORT: "8082"
       DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
       ENV: development
     ports:
       - "8082:8082"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
@@ -184,11 +190,14 @@ services:
     environment:
       PORT: "8083"
       DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
       ENV: development
     ports:
       - "8083:8083"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/health || exit 1"]
@@ -209,11 +218,14 @@ services:
     environment:
       PORT: "8084"
       DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
       ENV: development
     ports:
       - "8084:8084"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8084/health || exit 1"]
@@ -296,6 +308,50 @@ services:
       - aiauditor-net
 
   # ──────────────────────────────────────────────────────────
+  # API Gateway (Go / Chi)
+  # ──────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: gateway
+    container_name: aiauditor-gateway
+    environment:
+      PORT: "8080"
+      REDIS_URL: "redis://redis:6379"
+      ENV: development
+      FRONTEND_ORIGIN: "http://localhost:3000"
+      IDENTITY_JWKS_URL: "http://identity:8081/.well-known/jwks.json"
+      JWT_PUBLIC_KEY_PATH: ""
+      JWKS_CACHE_TTL: "5m"
+      RATE_LIMIT_STANDARD: "200"
+      RATE_LIMIT_ENTERPRISE: "1000"
+      RATE_LIMIT_INTEGRATION: "5000"
+      IDENTITY_URL: "http://identity:8081"
+      CONTROLS_URL: "http://control-framework:8082"
+      EVIDENCE_URL: "http://evidence:8083"
+      ENGAGEMENT_URL: "http://engagement:8084"
+      INTEGRATION_URL: "http://integration:8085"
+      AUDIT_TRAIL_URL: "http://audit-trail:8086"
+      REPORTING_URL: "http://reporting:8087"
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  # ──────────────────────────────────────────────────────────
   # Reasoning Engine (Python / FastAPI)
   # ──────────────────────────────────────────────────────────
   engine:
@@ -305,9 +361,13 @@ services:
     container_name: aiauditor-engine
     environment:
       PORT: "8088"
+      REDIS_URL: "redis://redis:6379"
       ENV: development
     ports:
       - "8088:8088"
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8088/health || exit 1"]
       interval: 15s
@@ -320,6 +380,60 @@ services:
   # ──────────────────────────────────────────────────────────
   # Frontend (Next.js)
   # ──────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────
+  # Search Infrastructure
+  # ──────────────────────────────────────────────────────────
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: aiauditor-opensearch
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - aiauditor-net
+
+  search:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: search
+    container_name: aiauditor-search
+    environment:
+      PORT: "8089"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      OPENSEARCH_URL: "http://opensearch:9200"
+      CDC_POLL_INTERVAL: "10s"
+      ENV: development
+    ports:
+      - "8089:8089"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8089/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
   frontend:
     build:
       context: ../../
@@ -333,6 +447,7 @@ services:
       NEXT_PUBLIC_EVIDENCE_URL: "http://evidence:8083"
       NEXT_PUBLIC_ENGINE_URL: "http://engine:8088"
       NEXT_PUBLIC_REPORTING_URL: "http://reporting:8087"
+      NEXT_PUBLIC_SEARCH_URL: "http://search:8089"
     ports:
       - "3000:3000"
     depends_on:
@@ -343,10 +458,37 @@ services:
     networks:
       - aiauditor-net
 
+  webhook:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: webhook
+    container_name: aiauditor-webhook
+    environment:
+      PORT: "8090"
+      METRICS_PORT: "9090"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      ENV: development
+    ports:
+      - "8090:8090"
+      - "9092:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - aiauditor-net
+
 volumes:
   postgres_data:
   redis_data:
   redpanda_data:
+  opensearch_data:
 
 networks:
   aiauditor-net:

@@ -3,6 +3,8 @@ module github.com/davejduke/obvious/services/engagement
 go 1.22
 
 require (
+	github.com/davejduke/obvious/shared/logging v0.0.0
+	github.com/davejduke/obvious/shared/metrics v0.0.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 )
@@ -38,4 +40,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/davejduke/obvious/shared/types => ../../shared/types/go
+replace (
+	github.com/davejduke/obvious/shared/logging => ../../shared/logging/go
+	github.com/davejduke/obvious/shared/metrics => ../../shared/metrics/go
+	github.com/davejduke/obvious/shared/types => ../../shared/types/go
+)
