@@ -187,3 +187,244 @@ export const personas: Array<{ id: Persona; label: string; description: string }
   { id: 'ptwg_member', label: 'PTWG Member', description: 'Policy and framework guidance' },
   { id: 'beta_tester', label: 'Beta Tester', description: 'Platform testing access' },
 ];
+
+// ---------------------------------------------------------------------------
+// Audit Planning Mock Data
+// ---------------------------------------------------------------------------
+
+export type RiskRating = 'critical' | 'high' | 'medium' | 'low';
+export type PlanStatus = 'draft' | 'approved' | 'active' | 'archived';
+export type CoverageLevel = 'none' | 'partial' | 'full';
+export type EngPlanStatus = 'planned' | 'in_progress' | 'completed' | 'deferred';
+
+export interface AuditableEntity {
+  id: string;
+  name: string;
+  business_unit: string;
+  risk_rating: RiskRating;
+  priority: number;
+  planned_year: number;
+  control_domains: string[];
+  notes?: string;
+}
+
+export interface StrategicPlan {
+  id: string;
+  org_id: string;
+  name: string;
+  description?: string;
+  start_year: number;
+  end_year: number;
+  status: PlanStatus;
+  version: number;
+  entities: AuditableEntity[];
+  approved_at?: string;
+  approved_by?: string;
+}
+
+export interface PlannedEngagement {
+  id: string;
+  name: string;
+  auditable_entity: string;
+  assigned_team: string[];
+  lead_auditor_id?: string;
+  quarter: number;
+  start_date: string;
+  end_date: string;
+  budget_days: number;
+  status: EngPlanStatus;
+}
+
+export interface AnnualPlan {
+  id: string;
+  org_id: string;
+  strategic_plan_id?: string;
+  year: number;
+  name: string;
+  status: PlanStatus;
+  version: number;
+  engagements: PlannedEngagement[];
+}
+
+export interface AssuranceCell {
+  business_unit: string;
+  control_domain: string;
+  coverage: CoverageLevel;
+  notes?: string;
+}
+
+export interface AssuranceMap {
+  id: string;
+  org_id: string;
+  year: number;
+  name: string;
+  business_units: string[];
+  control_domains: string[];
+  matrix: AssuranceCell[];
+}
+
+export interface Assignment {
+  id: string;
+  engagement_name: string;
+  start_date: string;
+  end_date: string;
+  allocated_days: number;
+  quarter: number;
+}
+
+export interface AuditorAllocation {
+  auditor_id: string;
+  auditor_name: string;
+  auditor_email: string;
+  role: string;
+  available_days: number;
+  assignments: Assignment[];
+}
+
+export interface ResourceCalendar {
+  id: string;
+  org_id: string;
+  year: number;
+  name: string;
+  auditors: AuditorAllocation[];
+}
+
+// ---- Strategic Plan ----
+export const mockStrategicPlan: StrategicPlan = {
+  id: 'sp-001', org_id: 'org-001',
+  name: '3-Year Cyber Assurance Plan 2025-2027',
+  description: 'Risk-based rolling plan covering NIS 2 Article 21 obligations, supply chain, and operational resilience.',
+  start_year: 2025, end_year: 2027,
+  status: 'active', version: 2,
+  approved_at: '2024-12-10T09:00:00Z',
+  approved_by: 'cae@example.com',
+  entities: [
+    { id: 'ae-001', name: 'Identity & Access Management', business_unit: 'IT Security', risk_rating: 'critical', priority: 1, planned_year: 2025, control_domains: ['IAM', 'Privileged Access'] },
+    { id: 'ae-002', name: 'Supply Chain Risk', business_unit: 'Procurement', risk_rating: 'critical', priority: 2, planned_year: 2025, control_domains: ['Vendor Management', 'Third-Party Risk'] },
+    { id: 'ae-003', name: 'Incident Response', business_unit: 'Security Operations', risk_rating: 'high', priority: 3, planned_year: 2025, control_domains: ['Incident Management', 'BCDR'] },
+    { id: 'ae-004', name: 'Patch Management', business_unit: 'IT Operations', risk_rating: 'high', priority: 4, planned_year: 2025, control_domains: ['Vulnerability Management'] },
+    { id: 'ae-005', name: 'Network Segmentation', business_unit: 'Network Ops', risk_rating: 'high', priority: 5, planned_year: 2026, control_domains: ['Network Security', 'OT/IT Boundary'] },
+    { id: 'ae-006', name: 'Data Classification', business_unit: 'Data Governance', risk_rating: 'medium', priority: 6, planned_year: 2026, control_domains: ['Data Protection', 'Privacy'] },
+    { id: 'ae-007', name: 'Cloud Security Posture', business_unit: 'Cloud Ops', risk_rating: 'high', priority: 7, planned_year: 2026, control_domains: ['Cloud Security', 'Configuration Management'] },
+    { id: 'ae-008', name: 'HR Security', business_unit: 'People', risk_rating: 'medium', priority: 8, planned_year: 2027, control_domains: ['Personnel Security', 'Awareness'] },
+    { id: 'ae-009', name: 'Physical Security', business_unit: 'Facilities', risk_rating: 'medium', priority: 9, planned_year: 2027, control_domains: ['Physical Access', 'Environmental'] },
+    { id: 'ae-010', name: 'Cryptography Controls', business_unit: 'IT Security', risk_rating: 'medium', priority: 10, planned_year: 2027, control_domains: ['Cryptography', 'Key Management'] },
+  ],
+};
+
+// ---- Annual Plan ----
+export const mockAnnualPlan: AnnualPlan = {
+  id: 'ap-001', org_id: 'org-001', strategic_plan_id: 'sp-001',
+  year: 2025, name: 'Annual Audit Plan 2025',
+  status: 'active', version: 3,
+  engagements: [
+    { id: 'pe-001', name: 'IAM Audit Q1', auditable_entity: 'Identity & Access Management', assigned_team: ['Alice Smith', 'Bob Lee'], lead_auditor_id: 'usr-001', quarter: 1, start_date: '2025-01-13', end_date: '2025-02-07', budget_days: 20, status: 'completed' },
+    { id: 'pe-002', name: 'Supply Chain Risk Review', auditable_entity: 'Supply Chain Risk', assigned_team: ['Alice Smith', 'Carol White'], lead_auditor_id: 'usr-001', quarter: 1, start_date: '2025-02-10', end_date: '2025-03-07', budget_days: 18, status: 'completed' },
+    { id: 'pe-003', name: 'Incident Response Readiness', auditable_entity: 'Incident Response', assigned_team: ['Bob Lee', 'Dan Green'], lead_auditor_id: 'usr-002', quarter: 2, start_date: '2025-04-07', end_date: '2025-05-02', budget_days: 15, status: 'in_progress' },
+    { id: 'pe-004', name: 'Patch Management Assessment', auditable_entity: 'Patch Management', assigned_team: ['Carol White'], lead_auditor_id: 'usr-002', quarter: 2, start_date: '2025-05-05', end_date: '2025-05-30', budget_days: 12, status: 'planned' },
+    { id: 'pe-005', name: 'Network Security Review', auditable_entity: 'Network Segmentation', assigned_team: ['Alice Smith', 'Dan Green'], lead_auditor_id: 'usr-001', quarter: 3, start_date: '2025-07-07', end_date: '2025-08-01', budget_days: 15, status: 'planned' },
+    { id: 'pe-006', name: 'Cloud CSPM Audit', auditable_entity: 'Cloud Security Posture', assigned_team: ['Bob Lee', 'Eve Chen'], lead_auditor_id: 'usr-003', quarter: 4, start_date: '2025-10-06', end_date: '2025-10-31', budget_days: 18, status: 'planned' },
+  ],
+};
+
+// ---- Assurance Map ----
+const BUS = ['IT Security', 'Network Ops', 'Procurement', 'Security Ops', 'Data Governance', 'Cloud Ops'];
+const CDS = ['IAM', 'Network Security', 'Vendor Management', 'Incident Management', 'Data Protection', 'Cloud Security'];
+
+function buildCell(bu: string, cd: string, coverage: CoverageLevel, notes?: string): AssuranceCell {
+  return { business_unit: bu, control_domain: cd, coverage, notes };
+}
+
+export const mockAssuranceMap: AssuranceMap = {
+  id: 'am-001', org_id: 'org-001', year: 2025,
+  name: 'Assurance Map 2025',
+  business_units: BUS,
+  control_domains: CDS,
+  matrix: [
+    buildCell('IT Security', 'IAM', 'full', 'IAM Audit Q1 complete'),
+    buildCell('IT Security', 'Network Security', 'partial'),
+    buildCell('IT Security', 'Vendor Management', 'none'),
+    buildCell('IT Security', 'Incident Management', 'partial'),
+    buildCell('IT Security', 'Data Protection', 'partial'),
+    buildCell('IT Security', 'Cloud Security', 'none'),
+    buildCell('Network Ops', 'IAM', 'partial'),
+    buildCell('Network Ops', 'Network Security', 'full', 'Network Review Q3 planned'),
+    buildCell('Network Ops', 'Vendor Management', 'none'),
+    buildCell('Network Ops', 'Incident Management', 'none'),
+    buildCell('Network Ops', 'Data Protection', 'none'),
+    buildCell('Network Ops', 'Cloud Security', 'none'),
+    buildCell('Procurement', 'IAM', 'none'),
+    buildCell('Procurement', 'Network Security', 'none'),
+    buildCell('Procurement', 'Vendor Management', 'full', 'Supply Chain Review complete'),
+    buildCell('Procurement', 'Incident Management', 'none'),
+    buildCell('Procurement', 'Data Protection', 'partial'),
+    buildCell('Procurement', 'Cloud Security', 'none'),
+    buildCell('Security Ops', 'IAM', 'partial'),
+    buildCell('Security Ops', 'Network Security', 'partial'),
+    buildCell('Security Ops', 'Vendor Management', 'none'),
+    buildCell('Security Ops', 'Incident Management', 'partial', 'IR Readiness in progress'),
+    buildCell('Security Ops', 'Data Protection', 'partial'),
+    buildCell('Security Ops', 'Cloud Security', 'partial'),
+    buildCell('Data Governance', 'IAM', 'partial'),
+    buildCell('Data Governance', 'Network Security', 'none'),
+    buildCell('Data Governance', 'Vendor Management', 'none'),
+    buildCell('Data Governance', 'Incident Management', 'none'),
+    buildCell('Data Governance', 'Data Protection', 'full'),
+    buildCell('Data Governance', 'Cloud Security', 'none'),
+    buildCell('Cloud Ops', 'IAM', 'partial'),
+    buildCell('Cloud Ops', 'Network Security', 'partial'),
+    buildCell('Cloud Ops', 'Vendor Management', 'none'),
+    buildCell('Cloud Ops', 'Incident Management', 'partial'),
+    buildCell('Cloud Ops', 'Data Protection', 'partial'),
+    buildCell('Cloud Ops', 'Cloud Security', 'partial', 'CSPM Audit Q4 planned'),
+  ],
+};
+
+// ---- Resource Calendar ----
+export const mockResourceCalendar: ResourceCalendar = {
+  id: 'rc-001', org_id: 'org-001', year: 2025,
+  name: 'Audit Team Calendar 2025',
+  auditors: [
+    {
+      auditor_id: 'usr-001', auditor_name: 'Alice Smith', auditor_email: 'alice@example.com',
+      role: 'Senior Auditor', available_days: 220,
+      assignments: [
+        { id: 'asgn-001', engagement_name: 'IAM Audit Q1', start_date: '2025-01-13', end_date: '2025-02-07', allocated_days: 20, quarter: 1 },
+        { id: 'asgn-002', engagement_name: 'Supply Chain Risk Review', start_date: '2025-02-10', end_date: '2025-03-07', allocated_days: 18, quarter: 1 },
+        { id: 'asgn-003', engagement_name: 'Network Security Review', start_date: '2025-07-07', end_date: '2025-08-01', allocated_days: 15, quarter: 3 },
+      ],
+    },
+    {
+      auditor_id: 'usr-002', auditor_name: 'Bob Lee', auditor_email: 'bob@example.com',
+      role: 'Auditor', available_days: 200,
+      assignments: [
+        { id: 'asgn-004', engagement_name: 'IAM Audit Q1', start_date: '2025-01-13', end_date: '2025-02-07', allocated_days: 20, quarter: 1 },
+        { id: 'asgn-005', engagement_name: 'Incident Response Readiness', start_date: '2025-04-07', end_date: '2025-05-02', allocated_days: 15, quarter: 2 },
+        { id: 'asgn-006', engagement_name: 'Cloud CSPM Audit', start_date: '2025-10-06', end_date: '2025-10-31', allocated_days: 18, quarter: 4 },
+      ],
+    },
+    {
+      auditor_id: 'usr-003', auditor_name: 'Carol White', auditor_email: 'carol@example.com',
+      role: 'Senior Auditor', available_days: 220,
+      assignments: [
+        { id: 'asgn-007', engagement_name: 'Supply Chain Risk Review', start_date: '2025-02-10', end_date: '2025-03-07', allocated_days: 18, quarter: 1 },
+        { id: 'asgn-008', engagement_name: 'Patch Management Assessment', start_date: '2025-05-05', end_date: '2025-05-30', allocated_days: 12, quarter: 2 },
+      ],
+    },
+    {
+      auditor_id: 'usr-004', auditor_name: 'Dan Green', auditor_email: 'dan@example.com',
+      role: 'Auditor', available_days: 200,
+      assignments: [
+        { id: 'asgn-009', engagement_name: 'Incident Response Readiness', start_date: '2025-04-07', end_date: '2025-05-02', allocated_days: 15, quarter: 2 },
+        { id: 'asgn-010', engagement_name: 'Network Security Review', start_date: '2025-07-07', end_date: '2025-08-01', allocated_days: 15, quarter: 3 },
+      ],
+    },
+    {
+      auditor_id: 'usr-005', auditor_name: 'Eve Chen', auditor_email: 'eve@example.com',
+      role: 'Manager', available_days: 180,
+      assignments: [
+        { id: 'asgn-011', engagement_name: 'Cloud CSPM Audit', start_date: '2025-10-06', end_date: '2025-10-31', allocated_days: 18, quarter: 4 },
+      ],
+    },
+  ],
+};
