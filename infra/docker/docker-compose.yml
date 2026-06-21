@@ -16,6 +16,7 @@ version: "3.9"
 #   audit-trail       8086:8086
 #   reporting         8087:8087
 #   engine            8088:8088
+#   gateway           8080:8080
 #   frontend          3000:3000
 # ============================================================
 
@@ -288,6 +289,50 @@ services:
       - "8087:8087"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8087/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
+  # ──────────────────────────────────────────────────────────
+  # API Gateway (Go / Chi)
+  # ──────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: gateway
+    container_name: aiauditor-gateway
+    environment:
+      PORT: "8080"
+      REDIS_URL: "redis://redis:6379"
+      ENV: development
+      FRONTEND_ORIGIN: "http://localhost:3000"
+      IDENTITY_JWKS_URL: "http://identity:8081/.well-known/jwks.json"
+      JWT_PUBLIC_KEY_PATH: ""
+      JWKS_CACHE_TTL: "5m"
+      RATE_LIMIT_STANDARD: "200"
+      RATE_LIMIT_ENTERPRISE: "1000"
+      RATE_LIMIT_INTEGRATION: "5000"
+      IDENTITY_URL: "http://identity:8081"
+      CONTROLS_URL: "http://control-framework:8082"
+      EVIDENCE_URL: "http://evidence:8083"
+      ENGAGEMENT_URL: "http://engagement:8084"
+      INTEGRATION_URL: "http://integration:8085"
+      AUDIT_TRAIL_URL: "http://audit-trail:8086"
+      REPORTING_URL: "http://reporting:8087"
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
