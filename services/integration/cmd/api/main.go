@@ -17,6 +17,7 @@ import (
 
 	"github.com/davejduke/obvious/services/integration/internal/adapters"
 	"github.com/davejduke/obvious/services/integration/internal/connector"
+	"github.com/davejduke/obvious/services/integration/internal/grc"
 	"github.com/davejduke/obvious/services/integration/internal/handler"
 )
 
@@ -51,16 +52,16 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"ready": true})
 	})
 
-	// Build connector registry
+	// ── SIEM connector registry ────────────────────────────────────────────
 	reg := connector.NewRegistry()
 
 	// Sentinel adapter with circuit breaker
 	sentinelAdapter := adapters.NewSentinelAdapter(adapters.SentinelConfig{
-		WorkspaceID: os.Getenv("SENTINEL_WORKSPACE_ID"),
-		TenantID:    os.Getenv("AZURE_TENANT_ID"),
-		ClientID:    os.Getenv("AZURE_CLIENT_ID"),
+		WorkspaceID:  os.Getenv("SENTINEL_WORKSPACE_ID"),
+		TenantID:     os.Getenv("AZURE_TENANT_ID"),
+		ClientID:     os.Getenv("AZURE_CLIENT_ID"),
 		ClientSecret: os.Getenv("AZURE_CLIENT_SECRET"),
-		MockMode:    os.Getenv("MOCK_MODE") != "false",
+		MockMode:     os.Getenv("MOCK_MODE") != "false",
 	})
 	reg.Register(connector.NewCircuitBreaker(sentinelAdapter, connector.DefaultConfig()))
 
@@ -73,12 +74,25 @@ func main() {
 	})
 	reg.Register(connector.NewCircuitBreaker(splunkAdapter, connector.DefaultConfig()))
 
-	integrationHandler := handler.NewIntegrationHandler(reg)
+	// ── GRC outbound connector registry ───────────────────────────────────
+	grcReg := grc.NewRegistry()
+
+	// ServiceNow GRC adapter (all connectors use mock/stub — no live credentials)
+	serviceNowAdapter := adapters.NewServiceNowAdapter(adapters.ServiceNowConfig{
+		BaseURL:  os.Getenv("SERVICENOW_BASE_URL"),
+		Username: os.Getenv("SERVICENOW_USERNAME"),
+		Password: os.Getenv("SERVICENOW_PASSWORD"),
+		MockMode: os.Getenv("MOCK_MODE") != "false",
+	})
+	grcReg.Register(serviceNowAdapter)
+
+	// ── Routes ────────────────────────────────────────────────────────────
+	integrationHandler := handler.NewIntegrationHandlerWithGRC(reg, grcReg)
 	integrationHandler.RegisterRoutes(r)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
-		Handler: svclogging.RequestIDMiddleware(svclogging.TraceContextMiddleware(svcmetrics.Middleware("integration")(r))),
+		Handler:      svclogging.RequestIDMiddleware(svclogging.TraceContextMiddleware(svcmetrics.Middleware("integration")(r))),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -102,4 +116,3 @@ func main() {
 	}
 	logger.Info(context.Background(), "server.shutdown", nil)
 }
-
