@@ -20,14 +20,16 @@ class TestMetricRegistrations:
     def test_all_metrics_registered(self) -> None:
         """All required metrics must be registered with the Prometheus collector."""
         names = {m.name for m in REGISTRY.collect()}
+        # prometheus_client strips the _total suffix from Counter names in the
+        # registry (the exposed text has _total, but collect() returns base name).
         required = {
             "request_duration_seconds",
-            "request_total",
-            "error_total",
+            "request",            # Counter name → base name without _total
+            "error",              # Counter name → base name without _total
             "aiauditor_engagements_active",
-            "aiauditor_evidence_items_ingested_total",
-            "aiauditor_conclusions_generated_total",
-            "aiauditor_quality_gates_blocked_total",
+            "aiauditor_evidence_items_ingested",   # Counter base name
+            "aiauditor_conclusions_generated",     # Counter base name
+            "aiauditor_quality_gates_blocked",     # Counter base name
             "aiauditor_coverage_rate",
             "aiauditor_reasoning_duration_seconds",
         }

@@ -28,7 +28,8 @@ def _add_service_field(
     logger: Any, method: str, event_dict: dict[str, Any]
 ) -> dict[str, Any]:
     """Add service name from logger name into every event."""
-    event_dict.setdefault("service", logger.name or "engine")
+    # structlog.PrintLogger does not expose a .name attribute; guard with getattr.
+    event_dict.setdefault("service", getattr(logger, "name", None) or "engine")
     return event_dict
 
 
