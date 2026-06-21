@@ -141,7 +141,7 @@ jobs:
       - name: Build all Go services
         run: |
           set -e
-          for svc in identity control-framework evidence audit-trail engagement integration reporting; do
+          for svc in identity control-framework evidence audit-trail engagement integration reporting webhook; do
             echo "Building services/$svc..."
             cd services/$svc
             go mod tidy

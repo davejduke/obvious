@@ -458,6 +458,32 @@ services:
     networks:
       - aiauditor-net
 
+  webhook:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: webhook
+    container_name: aiauditor-webhook
+    environment:
+      PORT: "8090"
+      METRICS_PORT: "9090"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      ENV: development
+    ports:
+      - "8090:8090"
+      - "9092:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - aiauditor-net
+
 volumes:
   postgres_data:
   redis_data:
