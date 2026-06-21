@@ -46,10 +46,12 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: aiauditor-redis
+    command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -159,11 +161,14 @@ services:
     environment:
       PORT: "8082"
       DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
       ENV: development
     ports:
       - "8082:8082"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
@@ -184,11 +189,14 @@ services:
     environment:
       PORT: "8083"
       DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
       ENV: development
     ports:
       - "8083:8083"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/health || exit 1"]
@@ -209,11 +217,14 @@ services:
     environment:
       PORT: "8084"
       DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
       ENV: development
     ports:
       - "8084:8084"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8084/health || exit 1"]
@@ -305,9 +316,13 @@ services:
     container_name: aiauditor-engine
     environment:
       PORT: "8088"
+      REDIS_URL: "redis://redis:6379"
       ENV: development
     ports:
       - "8088:8088"
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8088/health || exit 1"]
       interval: 15s

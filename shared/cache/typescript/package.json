@@ -1,0 +1,24 @@
+{
+  "name": "@aiauditor/cache",
+  "version": "0.1.0",
+  "description": "Redis cache client for AIAUDITOR Node.js services — session, ratelimit, scope namespaces",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest --testPathPattern='shared/cache/typescript'",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.0.0",
+    "ioredis-mock": "^8.9.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.4",
+    "typescript": "^5.4.5"
+  }
+}
