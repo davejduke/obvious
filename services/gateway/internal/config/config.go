@@ -32,6 +32,7 @@ type Config struct {
 	IntegrationURL string
 	AuditTrailURL string
 	ReportingURL  string
+	WebhooksURL   string
 }
 
 // Load reads config from environment variables with sensible defaults.
@@ -57,6 +58,7 @@ func Load() *Config {
 		IntegrationURL: getenv("INTEGRATION_URL", "http://integration:8085"),
 		AuditTrailURL:  getenv("AUDIT_TRAIL_URL", "http://audit-trail:8086"),
 		ReportingURL:   getenv("REPORTING_URL", "http://reporting:8087"),
+		WebhooksURL:    getenv("WEBHOOKS_URL", "http://webhooks:8088"),
 	}
 }
 

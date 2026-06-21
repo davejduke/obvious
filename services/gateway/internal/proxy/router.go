@@ -15,7 +15,7 @@ import (
 	"github.com/davejduke/obvious/services/gateway/internal/pagination"
 )
 
-// ServiceConfig holds upstream URLs for all 7 backend services.
+// ServiceConfig holds upstream URLs for all 8 backend services.
 type ServiceConfig struct {
 	IdentityURL    string
 	ControlsURL    string
@@ -24,6 +24,7 @@ type ServiceConfig struct {
 	IntegrationURL string
 	AuditTrailURL  string
 	ReportingURL   string
+	WebhooksURL    string
 }
 
 // Build constructs the gateway Chi router with all routes and middleware.
@@ -83,8 +84,13 @@ func Build(
 			proxyTo(cfg.ReportingURL, "/api/v1/reports"),
 		))
 
+		// ── Webhooks (/api/v1/webhooks/*) ───────────────────────────────────────
+		// Subscription CRUD is org-scoped; /dispatch is internal-only.
+		r.Mount("/webhooks", proxyTo(cfg.WebhooksURL, "/api/v1/webhooks"))
+
 		// ── Pagination demo endpoint ─────────────────────────────────────────────
 		r.Get("/paginate", paginateHandler)
+
 	})
 
 	return r
