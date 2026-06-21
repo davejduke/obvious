@@ -320,6 +320,60 @@ services:
   # ──────────────────────────────────────────────────────────
   # Frontend (Next.js)
   # ──────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────
+  # Search Infrastructure
+  # ──────────────────────────────────────────────────────────
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: aiauditor-opensearch
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - aiauditor-net
+
+  search:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.go-service
+      args:
+        SERVICE: search
+    container_name: aiauditor-search
+    environment:
+      PORT: "8089"
+      DATABASE_URL: "postgres://aiauditor:aiauditor_dev@postgres:5432/aiauditor?sslmode=disable"
+      OPENSEARCH_URL: "http://opensearch:9200"
+      CDC_POLL_INTERVAL: "10s"
+      ENV: development
+    ports:
+      - "8089:8089"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8089/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - aiauditor-net
+
   frontend:
     build:
       context: ../../
@@ -333,6 +387,7 @@ services:
       NEXT_PUBLIC_EVIDENCE_URL: "http://evidence:8083"
       NEXT_PUBLIC_ENGINE_URL: "http://engine:8088"
       NEXT_PUBLIC_REPORTING_URL: "http://reporting:8087"
+      NEXT_PUBLIC_SEARCH_URL: "http://search:8089"
     ports:
       - "3000:3000"
     depends_on:
@@ -347,6 +402,7 @@ volumes:
   postgres_data:
   redis_data:
   redpanda_data:
+  opensearch_data:
 
 networks:
   aiauditor-net:
