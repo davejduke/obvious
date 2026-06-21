@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,11 +12,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	svclogging "github.com/davejduke/obvious/shared/logging"
+	svcmetrics "github.com/davejduke/obvious/shared/metrics"
+
 	"github.com/davejduke/obvious/services/engagement/internal/handler"
 	"github.com/davejduke/obvious/services/engagement/internal/store"
 )
 
 func main() {
+	logger := svclogging.New("engagement")
+
+	// Start Prometheus metrics server on :9090.
+	metricsSrv := svcmetrics.StartServer(os.Getenv("METRICS_PORT"))
+	defer svcmetrics.StopServer(metricsSrv)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8082"
@@ -29,7 +37,6 @@ func main() {
 	}
 
 	r := gin.New()
-	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
 	r.GET("/health", func(c *gin.Context) {
@@ -48,17 +55,18 @@ func main() {
 	engagementHandler.RegisterRoutes(r)
 
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      r,
+		Addr:    fmt.Sprintf(":%s", port),
+		Handler: svclogging.RequestIDMiddleware(svclogging.TraceContextMiddleware(svcmetrics.Middleware("engagement")(r))),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
+	ctx := context.Background()
 	go func() {
-		log.Printf("[engagement] listening on :%s", port)
+		logger.Info(ctx, "server.start", map[string]any{"port": port})
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+			logger.Error(ctx, "server.error", map[string]any{"error": err.Error()})
 		}
 	}()
 
@@ -66,10 +74,10 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("forced shutdown: %v", err)
+	shutCtx, shutCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutCancel()
+	if err := srv.Shutdown(shutCtx); err != nil {
+		logger.Error(ctx, "server.shutdown_error", map[string]any{"error": err.Error()})
 	}
-	log.Println("[engagement] server exited")
+	logger.Info(ctx, "server.shutdown", nil)
 }
