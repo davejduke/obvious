@@ -168,8 +168,8 @@ jobs:
 
       - name: Run engine tests
         run: |
-          cd engine
-          python -m pytest tests/ -v --tb=short
+          # Run from repo root so 'engine' is importable as a package
+          python -m pytest engine/tests/ -v --tb=short --rootdir=.
 
   validate-sql:
     name: Validate SQL migrations
