@@ -19,6 +19,7 @@ import (
 	"github.com/davejduke/obvious/services/integration/internal/connector"
 	"github.com/davejduke/obvious/services/integration/internal/grc"
 	"github.com/davejduke/obvious/services/integration/internal/handler"
+	"github.com/davejduke/obvious/services/integration/internal/iam"
 	"github.com/davejduke/obvious/services/integration/internal/vulnconnector"
 )
 
@@ -46,7 +47,7 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{
 			"service": "integration",
 			"status":  "healthy",
-			"version": "0.1.0",
+			"version": "0.2.0",
 		})
 	})
 	r.GET("/ready", func(c *gin.Context) {
@@ -76,9 +77,6 @@ func main() {
 	reg.Register(connector.NewCircuitBreaker(splunkAdapter, connector.DefaultConfig()))
 
 	// AWS Security Hub adapter with circuit breaker
-	// ASFF findings are normalized to the AIAUDITOR evidence model.
-	// Additional endpoints (FetchFindings, FetchEvidenceItems, FetchComplianceResults,
-	// FetchSecurityScore) are available directly on the adapter for cloud security use cases.
 	awsHubAdapter := adapters.NewAWSSecurityHubAdapter(adapters.AWSSecurityHubConfig{
 		Region:          os.Getenv("AWS_REGION"),
 		AccountID:       os.Getenv("AWS_ACCOUNT_ID"),
@@ -128,9 +126,57 @@ func main() {
 	})
 	vulnReg.Register(crowdStrikeAdapter)
 
+	// ── IAM connector registry (Entra ID + Okta) ──────────────────────────
+	iamReg := iam.NewIAMRegistry()
+
+	entraIDAdapter := adapters.NewEntraIDAdapter(adapters.EntraIDConfig{
+		TenantID:     os.Getenv("AZURE_TENANT_ID"),
+		ClientID:     os.Getenv("AZURE_CLIENT_ID"),
+		ClientSecret: os.Getenv("AZURE_CLIENT_SECRET"),
+		MockMode:     os.Getenv("MOCK_MODE") != "false",
+	})
+	iamReg.Register(iam.NewIAMCircuitBreaker(entraIDAdapter, connector.DefaultConfig()))
+
+	oktaAdapter := adapters.NewOktaAdapter(adapters.OktaConfig{
+		OrgURL:   os.Getenv("OKTA_ORG_URL"),
+		APIToken: os.Getenv("OKTA_API_TOKEN"),
+		MockMode: os.Getenv("MOCK_MODE") != "false",
+	})
+	iamReg.Register(iam.NewIAMCircuitBreaker(oktaAdapter, connector.DefaultConfig()))
+
+	// IAM scheduler: configurable interval (default 15m); override via IAM_SYNC_INTERVAL.
+	syncInterval := 15 * time.Minute
+	if raw := os.Getenv("IAM_SYNC_INTERVAL"); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil && d > 0 {
+			syncInterval = d
+		}
+	}
+	schedCfg := iam.SchedulerConfig{
+		Interval: syncInterval,
+		OnSync: func(r iam.SyncResult) {
+			if r.Error != nil {
+				logger.Error(context.Background(), "iam.sync_error", map[string]any{
+					"provider": r.Provider,
+					"error":    r.Error.Error(),
+				})
+			} else {
+				logger.Info(context.Background(), "iam.sync_complete", map[string]any{
+					"provider":       r.Provider,
+					"users":          len(r.Snapshot.Users),
+					"evidence_items": len(r.Evidence),
+					"synced_at":      r.SyncedAt,
+				})
+			}
+		},
+	}
+	scheduler := iam.NewScheduler(iamReg, schedCfg)
+
 	// ── Routes ────────────────────────────────────────────────────────────
 	integrationHandler := handler.NewIntegrationHandlerFull(reg, grcReg, vulnReg)
 	integrationHandler.RegisterRoutes(r)
+
+	iamHandler := handler.NewIAMHandler(iamReg, scheduler)
+	iamHandler.RegisterIAMRoutes(r)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
@@ -139,6 +185,11 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
+
+	// Start IAM scheduler background loops (cancelled on shutdown).
+	schedCtx, schedCancel := context.WithCancel(context.Background())
+	defer schedCancel()
+	scheduler.Start(schedCtx)
 
 	go func() {
 		logger.Info(context.Background(), "server.start", map[string]any{"port": port})
@@ -150,6 +201,9 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+
+	schedCancel()
+	scheduler.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
