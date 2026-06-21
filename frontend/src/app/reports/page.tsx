@@ -8,7 +8,8 @@ import { SignOffModal, type SignOffDecision, type SignOffPayload } from '@/compo
 import { PasswordConfirmDialog, type PasswordConfirmPayload } from '@/components/ui/password-confirm-dialog';
 import { mockEngagements, mockNIS2Score } from '@/lib/mock-data';
 import { useState } from 'react';
-import { FileText, Download, Eye, Plus, Calendar, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileText, Download, Eye, Plus, Calendar, Lock, CheckCircle, AlertCircle, Edit3 } from 'lucide-react';
+import Link from 'next/link';
 
 // Mock current user — in production from JWT.
 const CURRENT_USER_ROLE = 'engagement_lead' as const;
@@ -135,6 +136,20 @@ export default function ReportsPage() {
   return (
     <AppShell title="Reports">
       <div className="p-6 space-y-6">
+        {/* Report Builder CTA */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Reports</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Generate and manage audit reports</p>
+          </div>
+          <Link href="/reports/builder">
+            <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+              <Edit3 size={15} />
+              Open Report Builder
+            </button>
+          </Link>
+        </div>
+
         {/* Engagement selector */}
         <Card>
           <CardBody className="py-3">

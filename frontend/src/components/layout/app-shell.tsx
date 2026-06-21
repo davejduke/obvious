@@ -16,7 +16,7 @@ export function AppShell({ children, title }: AppShellProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex h-screen overflow-hidden bg-slate-50">
+      <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-app)' }}>
         <Sidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
           <Header title={title} />

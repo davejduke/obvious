@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { ThemeProvider } from '@/components/providers/theme-provider';
+import { AppBootstrap } from '@/components/providers/app-bootstrap';
 
 export const metadata: Metadata = {
   title: 'AIAUDITOR',
@@ -13,8 +15,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider>
+          <AppBootstrap>
+            {children}
+          </AppBootstrap>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

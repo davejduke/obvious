@@ -207,6 +207,67 @@ export interface PaginatedResponse<T> {
 }
 
 // ============================================================
+// Auditee Portal types (§4.4)
+// ============================================================
+export type PortalFindingStatus =
+  | 'open'
+  | 'in_review'
+  | 'management_response_required'
+  | 'closed';
+
+export interface EvidenceRequest {
+  id: string;
+  org_id: string;
+  engagement_id: string;
+  control_id: string;
+  finding_id?: string;
+  requested_by_id: string;
+  requested_by_email: string;
+  assigned_to_id?: string;
+  title: string;
+  description: string;
+  instructions?: string;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  due_date: string;
+  status: 'pending' | 'in_progress' | 'submitted' | 'accepted' | 'rejected';
+  evidence_ids: string[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ManagementResponse {
+  id: string;
+  finding_id: string;
+  org_id: string;
+  responder_id: string;
+  responder_email: string;
+  response_text: string;
+  action_plan?: string;
+  target_remediation_date?: string;
+  status: 'draft' | 'submitted' | 'acknowledged';
+  submitted_at?: string;
+  acknowledged_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PortalNotification {
+  id: string;
+  type:
+    | 'evidence_request'
+    | 'finding_assignment'
+    | 'deadline_reminder'
+    | 'response_acknowledged';
+  title: string;
+  body: string;
+  reference_id?: string;
+  reference_type?: 'evidence_request' | 'finding';
+  is_read: boolean;
+  created_at: string;
+}
+
+// ============================================================
 // NIS 2 specific
 // ============================================================
 export type NIS2Article = "21a" | "21b" | "21c" | "21d" | "21e" | "21f" | "21g" | "21h" | "21i" | "21j";
@@ -224,3 +285,47 @@ export interface NIS2ComplianceScore {
   computed_at: string;
 }
 
+
+// ============================================================
+// Management Response Tracking
+
+// ============================================================
+// Management Response Tracking — audit lifecycle
+// (distinct from ManagementResponse portal entity above)
+// ============================================================
+
+export type AuditManagementStatus =
+  | 'pending'
+  | 'accepted'
+  | 'implementation_planned'
+  | 'implemented'
+  | 'verified';
+
+/** Full lifecycle tracker: finding → accepted → planned → implemented → verified */
+export interface AuditManagementResponse {
+  id: string;
+  finding_id: string;
+  finding_ref: string;
+  finding_title: string;
+  finding_severity: FindingSeverity;
+  status: AuditManagementStatus;
+  // Management acceptance
+  accepted_by?: string;
+  accepted_at?: string;
+  acceptance_notes?: string;
+  // Implementation plan
+  implementation_plan?: string;
+  implementation_owner?: string;
+  implementation_due_date?: string;
+  planned_at?: string;
+  // Implementation evidence
+  implemented_at?: string;
+  implementation_notes?: string;
+  // Verification
+  verified_by?: string;
+  verified_at?: string;
+  verification_notes?: string;
+  // Meta
+  created_at: string;
+  updated_at: string;
+}
