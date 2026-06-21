@@ -47,24 +47,58 @@ func (g *PDFGenerator) Generate(data template.ReportData) ([]byte, error) {
 		line(50, 685, 11, fmt.Sprintf("Classification: %s", data.Metadata.Classification)),
 	)
 
-	// Executive summary
+	// Executive summary — prefer LLM narrative if available, else fallback
+	execText := data.ExecSummary
+	if data.Narratives != nil && data.Narratives.ExecutiveSummary != "" {
+		execText = data.Narratives.ExecutiveSummary
+	}
+	narrativeLabel := ""
+	if data.Narratives != nil {
+		tone := data.Narratives.Tone
+		if tone == "" {
+			tone = "formal"
+		}
+		suffix := "live"
+		if data.Narratives.IsMock {
+			suffix = "mock"
+		}
+		narrativeLabel = fmt.Sprintf("Narrative: tone=%s model=%s [%s]", tone, data.Narratives.ModelID, suffix)
+	}
 	textBlocks = append(textBlocks,
 		line(50, 660, 13, "EXECUTIVE SUMMARY"),
-		line(50, 645, 10, truncate(data.ExecSummary, 90)),
+		line(50, 645, 10, truncate(execText, 90)),
 	)
+	if narrativeLabel != "" {
+		textBlocks = append(textBlocks, line(50, 630, 8, narrativeLabel))
+	}
+
+	// Methodology narrative (if present)
+	if data.Narratives != nil && data.Narratives.Methodology != "" {
+		textBlocks = append(textBlocks,
+			line(50, 618, 13, "METHODOLOGY"),
+			line(50, 604, 9, truncate(data.Narratives.Methodology, 110)),
+		)
+	}
 
 	// Finding summary
 	textBlocks = append(textBlocks,
-		line(50, 620, 13, "FINDINGS SUMMARY"),
-		line(50, 605, 10, fmt.Sprintf("Total: %d  Critical: %d  High: %d  Medium: %d  Low: %d  Info: %d",
+		line(50, 588, 13, "FINDINGS SUMMARY"),
+		line(50, 573, 10, fmt.Sprintf("Total: %d  Critical: %d  High: %d  Medium: %d  Low: %d  Info: %d",
 			data.Summary.TotalFindings, data.Summary.Critical, data.Summary.High,
 			data.Summary.Medium, data.Summary.Low, data.Summary.Informational,
 		)),
-		line(50, 590, 10, fmt.Sprintf("Evidence items: %d", data.Summary.TotalEvidence)),
+		line(50, 558, 10, fmt.Sprintf("Evidence items: %d", data.Summary.TotalEvidence)),
 	)
 
-	// Individual findings (up to 5 per page for brevity)
-	y := 565
+	// Findings narrative (if present)
+	if data.Narratives != nil && data.Narratives.Findings != "" {
+		textBlocks = append(textBlocks,
+			line(50, 544, 9, truncate(data.Narratives.Findings, 110)),
+		)
+	}
+
+	// Individual findings (up to 10 per page)
+	y := 530
 	textBlocks = append(textBlocks, line(50, y, 13, "DETAILED FINDINGS"))
 	y -= 15
 	for i, f := range data.Findings {
@@ -93,6 +127,14 @@ func (g *PDFGenerator) Generate(data template.ReportData) ([]byte, error) {
 		if y < 80 {
 			break
 		}
+	}
+
+	// Recommendations narrative (appended after findings)
+	if data.Narratives != nil && data.Narratives.Recommendations != "" {
+		textBlocks = append(textBlocks,
+			line(50, 72, 13, "RECOMMENDATIONS"),
+			line(50, 58, 9, truncate(data.Narratives.Recommendations, 110)),
+		)
 	}
 
 	pageContent := strings.Join(textBlocks, "\n")
