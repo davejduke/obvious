@@ -285,3 +285,42 @@ export interface NIS2ComplianceScore {
   computed_at: string;
 }
 
+
+// ============================================================
+// Management Response Tracking
+// ============================================================
+
+export type ManagementResponseStatus =
+  | 'pending'
+  | 'accepted'
+  | 'implementation_planned'
+  | 'implemented'
+  | 'verified';
+
+export interface ManagementResponse {
+  id: string;
+  finding_id: string;
+  finding_ref: string;
+  finding_title: string;
+  finding_severity: FindingSeverity;
+  status: ManagementResponseStatus;
+  // Management acceptance
+  accepted_by?: string;
+  accepted_at?: string;
+  acceptance_notes?: string;
+  // Implementation plan
+  implementation_plan?: string;
+  implementation_owner?: string;
+  implementation_due_date?: string;
+  planned_at?: string;
+  // Implementation evidence
+  implemented_at?: string;
+  implementation_notes?: string;
+  // Verification
+  verified_by?: string;
+  verified_at?: string;
+  verification_notes?: string;
+  // Meta
+  created_at: string;
+  updated_at: string;
+}
