@@ -5,6 +5,7 @@ import { Bell, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { clsx } from 'clsx';
 import type { Persona } from '@shared/index';
+import { GlobalSearch } from '@/components/search/global-search';
 
 export function Header({ title }: { title?: string }) {
   const { currentPersona, setPersona } = usePersonaStore();
@@ -17,6 +18,9 @@ export function Header({ title }: { title?: string }) {
         {title && <h1 className="text-lg font-semibold text-slate-900">{title}</h1>}
       </div>
       <div className="flex items-center gap-4">
+        {/* Global search (Cmd+K) */}
+        <GlobalSearch />
+
         {/* Notification bell */}
         <button className="relative p-2 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100">
           <Bell size={18} />
