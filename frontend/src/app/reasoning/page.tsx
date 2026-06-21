@@ -2,22 +2,23 @@
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardHeader, CardBody } from '@/components/ui/card';
 import { ReasoningDAG } from '@/components/dag/reasoning-dag';
-import { mockDAGNodes } from '@/lib/mock-data';
+import { ReasoningEngineTrigger } from '@/components/reasoning/reasoning-engine-overlay';
+import { mockDAGNodes, mockReasoningState } from '@/lib/mock-data';
 import { Network, CheckCircle2, Clock, Circle } from 'lucide-react';
 
-const completedCount = mockDAGNodes.filter(n => n.status === 'completed').length;
-const inProgressCount = mockDAGNodes.filter(n => n.status === 'in_progress').length;
-const pendingCount = mockDAGNodes.filter(n => n.status === 'pending').length;
+const completedCount   = mockDAGNodes.filter(n => n.status === 'completed').length;
+const inProgressCount  = mockDAGNodes.filter(n => n.status === 'in_progress').length;
+const pendingCount     = mockDAGNodes.filter(n => n.status === 'pending').length;
 
 export default function ReasoningPage() {
   return (
     <AppShell title="Reasoning Visualizer">
       <div className="p-6 space-y-6">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <p className="text-slate-500 text-sm">D3.js DAG visualization of the AIAUDITOR reasoning engine execution graph</p>
           </div>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm flex-wrap">
             <span className="flex items-center gap-1.5 text-green-600">
               <CheckCircle2 size={14} /> <span>{completedCount} completed</span>
             </span>
@@ -27,6 +28,8 @@ export default function ReasoningPage() {
             <span className="flex items-center gap-1.5 text-slate-400">
               <Circle size={14} /> <span>{pendingCount} pending</span>
             </span>
+            {/* Reasoning Engine overlay trigger */}
+            <ReasoningEngineTrigger state={mockReasoningState} />
           </div>
         </div>
 
@@ -79,7 +82,7 @@ export default function ReasoningPage() {
                     <td className="px-6 py-3 capitalize text-slate-500">{node.type}</td>
                     <td className="px-6 py-3">
                       <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded ${
-                        node.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        node.status === 'completed'   ? 'bg-green-100 text-green-700' :
                         node.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
                         'bg-slate-100 text-slate-500'
                       }`}>
