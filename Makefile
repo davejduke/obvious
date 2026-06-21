@@ -1,7 +1,7 @@
 .PHONY: up down migrate seed test lint build clean
 
 COMPOSE_FILE := infra/docker/docker-compose.yml
-SERVICES := identity control-framework evidence audit-trail engagement integration reporting webhooks approval
+SERVICES := identity control-framework evidence audit-trail engagement integration reporting webhooks approval planning
 
 # ============================================================
 # Infrastructure

@@ -5,13 +5,14 @@ import { clsx } from 'clsx';
 import {
   LayoutDashboard, Briefcase, ShieldCheck, FileSearch,
   Network, AlertTriangle, FileText, Settings, ChevronLeft,
-  ChevronRight, Activity
+  ChevronRight, Activity, CalendarDays
 } from 'lucide-react';
 import { useAppStore } from '@/store/app';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/engagement', label: 'Engagement', icon: Briefcase },
+  { href: '/planning', label: 'Planning', icon: CalendarDays },
   { href: '/controls', label: 'Controls', icon: ShieldCheck },
   { href: '/evidence', label: 'Evidence', icon: FileSearch },
   { href: '/reasoning', label: 'Reasoning', icon: Network },
