@@ -74,6 +74,20 @@ func main() {
 	})
 	reg.Register(connector.NewCircuitBreaker(splunkAdapter, connector.DefaultConfig()))
 
+	// AWS Security Hub adapter with circuit breaker
+	// ASFF findings are normalized to the AIAUDITOR evidence model.
+	// Additional endpoints (FetchFindings, FetchEvidenceItems, FetchComplianceResults,
+	// FetchSecurityScore) are available directly on the adapter for cloud security use cases.
+	awsHubAdapter := adapters.NewAWSSecurityHubAdapter(adapters.AWSSecurityHubConfig{
+		Region:          os.Getenv("AWS_REGION"),
+		AccountID:       os.Getenv("AWS_ACCOUNT_ID"),
+		AccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
+		SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		SessionToken:    os.Getenv("AWS_SESSION_TOKEN"),
+		MockMode:        os.Getenv("MOCK_MODE") != "false",
+	})
+	reg.Register(connector.NewCircuitBreaker(awsHubAdapter, connector.DefaultConfig()))
+
 	// ── GRC outbound connector registry ───────────────────────────────────
 	grcReg := grc.NewRegistry()
 
