@@ -68,13 +68,33 @@ type SummaryStats struct {
 	TotalEvidence    int `json:"total_evidence"`
 }
 
+// WorkingPaperNarratives holds LLM-generated narrative text for the four
+// working paper sections.  Text-generation ONLY — all conclusions and scores
+// come from the deterministic engines and are carried in ReportData fields.
+type WorkingPaperNarratives struct {
+	// LLM model that produced these narratives (e.g. "anthropic.claude-sonnet-3-7#mock")
+	ModelID string `json:"model_id,omitempty"`
+	// Tone used for generation: "formal", "technical", or "executive"
+	Tone string `json:"tone,omitempty"`
+	// Whether these were produced by a mock stub (no real Bedrock call)
+	IsMock bool `json:"is_mock"`
+
+	ExecutiveSummary string `json:"executive_summary,omitempty"`
+	Methodology      string `json:"methodology,omitempty"`
+	Findings         string `json:"findings,omitempty"`
+	Recommendations  string `json:"recommendations,omitempty"`
+}
+
 // ReportData is the complete data model for report generation.
 type ReportData struct {
-	Metadata   ReportMetadata `json:"metadata"`
-	Summary    SummaryStats   `json:"summary"`
-	Findings   []Finding      `json:"findings"`
-	Evidence   []EvidenceItem `json:"evidence"`
-	ExecSummary string        `json:"exec_summary"`
+	Metadata    ReportMetadata        `json:"metadata"`
+	Summary     SummaryStats          `json:"summary"`
+	Findings    []Finding             `json:"findings"`
+	Evidence    []EvidenceItem        `json:"evidence"`
+	ExecSummary string                `json:"exec_summary"`
+	// Narratives holds LLM-generated text sections.  When nil, the PDF
+	// falls back to the legacy ExecSummary string only.
+	Narratives *WorkingPaperNarratives `json:"narratives,omitempty"`
 }
 
 // BuildSummary computes SummaryStats from the Findings and Evidence slices.
