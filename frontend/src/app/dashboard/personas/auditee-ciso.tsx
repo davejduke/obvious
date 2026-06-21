@@ -3,9 +3,10 @@ import { MetricCard, Card, CardHeader, CardBody } from '@/components/ui/card';
 import { SeverityBadge, StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { mockFindings, mockEvidence } from '@/lib/mock-data';
+import { mockEvidenceRequests, sortRequestsByPriority } from '@/lib/portal-mock-data';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
-import { Upload, FileCheck, Clock, CheckCircle2 } from 'lucide-react';
+import { Upload, FileCheck, Clock, CheckCircle2, ExternalLink, AlertCircle } from 'lucide-react';
 
 const remediationData = [
   { week: 'W1', completed: 1, remaining: 5 },
@@ -18,6 +19,13 @@ const remediationData = [
 export function AuditeeCISODashboard() {
   const myFindings = mockFindings.filter(f => ['open', 'in_remediation'].includes(f.status));
   const pendingEvidence = mockEvidence.filter(e => e.status === 'pending_review');
+  // Portal widget — pending evidence requests with deadlines
+  const pendingPortalRequests = sortRequestsByPriority(
+    mockEvidenceRequests.filter(r => ['pending', 'in_progress'].includes(r.status))
+  );
+  const overduePortalRequests = pendingPortalRequests.filter(
+    r => new Date(r.due_date) < new Date()
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -79,6 +87,56 @@ export function AuditeeCISODashboard() {
           </CardBody>
         </Card>
       </div>
+
+      {/* Auditee Portal widget */}
+      <Card className="border-indigo-200 bg-indigo-50/40">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+              <AlertCircle size={16} className="text-indigo-500" />
+              Auditee Portal — Evidence Requests
+            </h3>
+            <Link href="/portal/dashboard">
+              <Button variant="secondary" size="sm">
+                Open Portal <ExternalLink size={12} />
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-white rounded-lg border border-slate-200 p-3 text-center">
+              <p className="text-2xl font-bold text-slate-900">{pendingPortalRequests.length}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Pending Requests</p>
+            </div>
+            <div className="bg-white rounded-lg border border-slate-200 p-3 text-center">
+              <p className="text-2xl font-bold text-red-600">{overduePortalRequests.length}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Overdue</p>
+            </div>
+            <div className="bg-white rounded-lg border border-slate-200 p-3 text-center">
+              <p className="text-2xl font-bold text-slate-900">{mockEvidenceRequests.length}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Total Requests</p>
+            </div>
+          </div>
+          {pendingPortalRequests.slice(0, 3).map(req => (
+            <div key={req.id} className="flex items-center gap-3 py-2 border-b border-indigo-100 last:border-0">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 truncate">{req.title}</p>
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <Clock size={11} />
+                  Due: {req.due_date}
+                  {new Date(req.due_date) < new Date() && (
+                    <span className="text-red-500 font-semibold ml-1">(OVERDUE)</span>
+                  )}
+                </p>
+              </div>
+              <Link href={`/portal/evidence-requests/${req.id}`}>
+                <Button variant="ghost" size="sm">Respond</Button>
+              </Link>
+            </div>
+          ))}
+        </CardBody>
+      </Card>
 
       {/* Action items */}
       <Card>
