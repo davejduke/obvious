@@ -297,9 +297,9 @@ func generateSecret() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// maskSecret shows only the last 4 chars of a secret.
+// maskSecret shows only the last 4 chars of a secret (or fewer if the secret is shorter than 4).
 func maskSecret(s string) string {
-	if len(s) <= 4 {
+	if len(s) < 4 {
 		return "****"
 	}
 	return "****" + s[len(s)-4:]
